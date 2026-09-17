@@ -121,6 +121,44 @@ ok('alla sju bär skäl på disken', dom3.kyrkogård.every((k) => typeof k.varf�
 ok('domen är märkt som ensam när inga betyg kom in', dom3.ensamDomare === true);
 ok('disken har varje fallet delsvar från alla rundor', (await kyrkogard()).antal === 9, `${(await kyrkogard()).antal}`);
 
+// ── 1b. En granskad siffra slår alltid vår egen gissning ───────────────────
+// Regressionsprov för första domen i skarp drift ([199]): vår heuristik gav 0.9 och
+// vann över ett delsvar som en granne läst och satt 0.8 på. Får aldrig hända igen.
+console.log('\n── Grannens siffra väger tyngre än vår ──');
+const fh = await emit('ödet', 'fråga', { text: 'Vinner en gissning över en bedömning?' });
+const hög = await emit('highfive', 'delsvar', {
+  text: 'Ett långt och välformulerat delsvar som citerar [41] och [52], innehåller siffran 14 och är gott och väl över hundrasextio tecken så att varje regel i ordräknaren slår till.',
+  motivering: 'En lång motivering som citerar [66] och maxar heuristiken på alla punkter den kan mäta.',
+}, fh.id);
+const granskad = await emit('willebus', 'delsvar', {
+  text: 'Ett kortare delsvar som en granne faktiskt har läst.',
+  motivering: 'Ordningsmaktens vinkel.',
+}, fh.id);
+await emit('tjoho', 'betyg', { fitness: 0.8, varför: 'Läst och vägt av en granne.' }, granskad.id);
+await sov(EFTER_FÖNSTER);
+const domH = (await domar()).domar[0];
+
+ok('den granskade vann över vår gissning', domH.valt.från === 'willebus', `vann: ${domH.valt.från}`);
+ok('vinnarens siffra kom från grannen', domH.valt.källa === 'grannar');
+const gissad = domH.kyrkogård.find((k) => k.från === 'highfive');
+ok('vår egen siffra takas under en bedömning', gissad.fitness <= 0.7, `heuristik gav ${gissad.fitness}`);
+
+// ── 1c. Oavgjort redovisas som oavgjort, inte som enighet ──────────────────
+console.log('\n── Oavgjort ──');
+const fo = await emit('ipat', 'fråga', { text: 'Två likvärdiga delsvar, vad säger ni då?' });
+const lika = 'Två delsvar med exakt samma form, längd och struktur ger samma heuristik.';
+const o1 = await emit('tjoho', 'delsvar', { text: lika, motivering: 'En motivering över trettio tecken lång.' }, fo.id);
+const o2 = await emit('lp', 'delsvar', { text: lika, motivering: 'En motivering över trettio tecken lång.' }, fo.id);
+await sov(EFTER_FÖNSTER);
+const domO = (await domar()).domar[0];
+ok('lika delsvar får samma fitness', domO.valt.fitness === domO.kyrkogård[0].fitness,
+  `${domO.valt.fitness} mot ${domO.kyrkogård[0].fitness}`);
+ok('domen är märkt oavgjord', domO.oavgjort === true);
+ok('stenens skäl säger oavgjort, inte att den förlorade', /Oavgjort/.test(domO.kyrkogård[0].varför),
+  domO.kyrkogård[0].varför);
+// Svaret kan ligga kvar i kön här: budgeten är slut. Vi kontrollerar det på slutet,
+// när minuten löpt ut, i stället för att läsa pulsen innan det hunnit ut.
+
 // ── 5. Kön: svaret går före gravstenarna ───────────────────────────────────
 console.log('\n── Kön när budgeten är slut ──');
 await enkelFråga('mohamad', 'Den här frågan köas i sin helhet.', 6);
@@ -136,10 +174,14 @@ await sov(65000);
 const efter = await domar();
 const allt = (await puls()).filter((e) => e.från === 'team-jacob');
 
-ok('alla fem svar kom ut', allt.filter((e) => e.typ === 'svar').length === 5,
+ok('alla sju svar kom ut', allt.filter((e) => e.typ === 'svar').length === 7,
   `${allt.filter((e) => e.typ === 'svar').length} svar`);
 ok('inga svar ligger kvar i kön', !efter.köTyper.includes('svar'), efter.köTyper.join(','));
 ok('inget vi postade fick otillåtet djup', allt.every((e) => e.djup >= 1 && e.djup <= 4));
+
+const svarO = allt.find((e) => e.typ === 'svar' && e.orsak === fo.id);
+ok('oavgjort syns på pulsen, inte bara hos oss', svarO && svarO.nyttolast.oavgjort === true,
+  svarO ? `oavgjort: ${svarO.nyttolast.oavgjort}` : 'svaret kom aldrig ut');
 
 // Gravstenar som väntat för länge släpps från bussen, men aldrig från disken.
 console.log('\n  (väntar ut stenarnas hållbarhet, 60 s till)');
@@ -147,8 +189,8 @@ await sov(60000);
 const slut = await domar();
 const kg = await kyrkogard();
 ok('kön är tom till slut', slut.kö === 0, `${slut.kö} kvar`);
-// 2 + 7 + 5 fallna delsvar över de fem rundorna. Inget av dem får saknas.
-ok('varje fallet delsvar finns kvar på disken', kg.antal === 14, `${kg.antal} stenar`);
+// 2 + 7 + 1 + 1 + 5 fallna delsvar över alla rundor. Inget av dem får saknas.
+ok('varje fallet delsvar finns kvar på disken', kg.antal === 16, `${kg.antal} stenar`);
 ok('stenar som blev för gamla räknades, inte glömdes', typeof slut.släpptaStenar === 'number',
   `${slut.släpptaStenar} släppta från bussen, alla kvar på /kyrkogard`);
 

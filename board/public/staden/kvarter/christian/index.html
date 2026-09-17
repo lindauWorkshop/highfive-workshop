@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Godisfabriken</title>
+<style>
+  /* Värdena är /stadens egna tokens — rutan ska se ut som staden, inte som en främling i den. */
+  :root { --bg:#0b0d10; --panel:#12151a; --line:#1f242c; --fg:#e6e8eb; --dim:#7d8590;
+          --accent:#ffb454; --god:#5fd7a7; --kris:#d17a7a; --ink2:#c3c8cf; }
+  * { box-sizing:border-box; }
+  /* Ingen låst höjd: /staden mäter scrollHeight för att låta rutan växa 340 → 720 px. */
+  body { margin:0; background:var(--bg); color:var(--fg); font:12px/1.4 ui-monospace, Menlo, monospace; }
+
+  .topp { display:flex; align-items:baseline; gap:8px; padding:8px 11px 6px; }
+  .topp b { color:var(--accent); font-size:11px; letter-spacing:.1em; text-transform:uppercase; }
+  .topp .dim { color:var(--dim); font-size:10px; }
+
+  /* Status bärs av text, inte av färg. Färgen är en förstärkning, aldrig bäraren. */
+  .band { margin:0 11px 8px; padding:4px 9px; border:1px solid var(--line); border-radius:6px;
+          font-size:11px; display:flex; align-items:center; gap:7px; }
+  .band .pip { width:7px; height:7px; border-radius:50%; background:var(--dim); flex:none; }
+  .band.kör { border-color:var(--god); } .band.kör .pip { background:var(--god); }
+  .band.sockerstopp { border-color:var(--accent); } .band.sockerstopp .pip { background:var(--accent); }
+  .band.strömlöst { border-color:var(--kris); } .band.strömlöst .pip { background:var(--kris); }
+  .band .vad { color:var(--fg); } .band .varför { color:var(--dim); }
+
+  .ranson { margin:0 11px 8px; padding:4px 9px; border:1px solid var(--accent); border-radius:6px;
+            font-size:11px; color:var(--accent); }
+
+  /* Mätare: tunna spår, 4 px rundade ändar, ankrade i botten av spåret. */
+  .mätare { padding:0 11px 2px; }
+  .m { margin-bottom:8px; }
+  .m .rad { display:flex; align-items:baseline; gap:6px; margin-bottom:3px; }
+  .m .namn { color:var(--dim); font-size:10px; letter-spacing:.08em; text-transform:uppercase; }
+  .m .tal { margin-left:auto; color:var(--fg); font-size:12px; }
+  .m .lapp { color:var(--dim); font-size:10px; }
+  .spår { height:6px; background:#191d24; border-radius:4px; overflow:hidden; }
+  .fyll { height:100%; border-radius:4px; background:var(--god); transition:width .5s ease, background .3s; }
+  .fyll.varn { background:var(--accent); } .fyll.kris { background:var(--kris); }
+
+  /* KPI-rad: tal utan diagram, för de värden som inte har någon skala att mätas mot. */
+  .kpi { display:flex; flex-wrap:wrap; gap:8px; padding:2px 11px 9px; }
+  .t { flex:1 1 84px; border:1px solid var(--line); border-radius:7px; padding:5px 8px; min-width:0; }
+  .t .e { color:var(--dim); font-size:9px; letter-spacing:.1em; text-transform:uppercase; white-space:nowrap;
+          overflow:hidden; text-overflow:ellipsis; }
+  .t .v { color:var(--fg); font-size:16px; line-height:1.15; }
+  .t .v small { font-size:10px; color:var(--dim); }
+
+  .knapprad { display:flex; gap:7px; align-items:center; padding:0 11px 9px; }
+  button { background:var(--panel); border:1px solid var(--line); color:var(--ink2); border-radius:6px;
+           padding:5px 10px; font:inherit; font-size:11px; cursor:pointer; }
+  button:hover:not(:disabled) { color:var(--fg); border-color:var(--accent); }
+  button:disabled { color:var(--dim); cursor:default; }
+  .knapprad .info { color:var(--dim); font-size:10px; }
+
+  .logg { border-top:1px solid var(--line); padding:7px 11px 11px; }
+  .logg .e { color:var(--dim); font-size:9px; letter-spacing:.12em; text-transform:uppercase; margin-bottom:5px; }
+  .logg ul { margin:0; padding:0; list-style:none; }
+  .logg li { font-size:10.5px; color:var(--ink2); padding:2px 0 2px 8px; border-left:2px solid var(--line);
+             margin-bottom:2px; animation:in .45s ease-out; }
+  .logg li.post { border-left-color:var(--god); }
+  .logg li.nekad { border-left-color:var(--kris); }
+  .logg li .tid { color:var(--dim); }
+  .logg li .ors { color:var(--accent); }
+  @keyframes in { from { opacity:0; transform:translateX(-5px); } to { opacity:1; transform:none; } }
+</style>
+</head>
+<body>
+
+<div class="topp"><b>Godisfabriken</b><span class="dim">vid Torget · christian</span></div>
+
+<div class="band" id="band"><span class="pip"></span><span class="vad">startar…</span></div>
+<div class="ranson" id="ranson" hidden></div>
+
+<div class="mätare">
+  <div class="m">
+    <div class="rad"><span class="namn">Sockersilo</span><span class="lapp" id="siloLapp"></span><span class="tal" id="siloTal">–</span></div>
+    <div class="spår"><div class="fyll" id="siloFyll" style="width:0"></div></div>
+  </div>
+  <div class="m">
+    <div class="rad"><span class="namn">Kö vid luckan</span><span class="lapp" id="köLapp"></span><span class="tal" id="köTal">–</span></div>
+    <div class="spår"><div class="fyll" id="köFyll" style="width:0"></div></div>
+  </div>
+</div>
+
+<div class="kpi">
+  <div class="t"><div class="e">Lager</div><div class="v" id="lager">–</div></div>
+  <div class="t"><div class="e">Pris</div><div class="v" id="pris">–</div></div>
+  <div class="t"><div class="e">Satser</div><div class="v" id="satser">–</div></div>
+  <div class="t"><div class="e">Postat / min</div><div class="v" id="takt">–</div></div>
+</div>
+
+<div class="knapprad">
+  <button id="lev" type="button">Leverera 50 kg socker</button>
+  <span class="info" id="levInfo"></span>
+</div>
+
+<div class="logg">
+  <div class="e">Vad som hänt, och vad som orsakade det</div>
+  <ul id="loggLista"></ul>
+</div>
+
+<script>
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const klocka = ms => new Date(ms).toTimeString().slice(0, 5);
+
+const BAND = {
+  'kör':         { vad: 'Bandet rullar',   varför: 'socker i silon, ström i väggen' },
+  'sockerstopp': { vad: 'Bandet står',     varför: 'slut på socker — fyll silon' },
+  'strömlöst':   { vad: 'Bandet är dött',  varför: 'strömavbrott i staden' },
+};
+
+function ritaBand(s) {
+  const el = document.getElementById('band');
+  const b = BAND[s.band] || { vad: s.band, varför: '' };
+  el.className = 'band ' + s.band;
+  el.innerHTML = `<span class="pip"></span><span class="vad">${esc(b.vad)}</span><span class="varför">${esc(b.varför)}</span>`;
+
+  const r = document.getElementById('ranson');
+  r.hidden = !s.ransonering;
+  if (s.ransonering) r.textContent = 'Ransonering: staden har beslutat halva satser';
+}
+
+// Mätare mot en tröskel: färgen följer tillståndet, och tillståndet står alltid i text.
+function ritaMätare(id, värde, tak, tröskel, över) {
+  const andel = Math.max(0, Math.min(1, värde / tak));
+  const fyll = document.getElementById(id + 'Fyll');
+  const dålig = över ? värde >= tröskel : värde <= tröskel;
+  fyll.style.width = (andel * 100).toFixed(1) + '%';
+  fyll.className = 'fyll' + (dålig ? (över ? ' kris' : ' kris') : andel < 0.35 && !över ? ' varn' : '');
+  document.getElementById(id + 'Tal').textContent = värde;
+  document.getElementById(id + 'Lapp').textContent = dålig ? (över ? 'trängsel' : 'brist') : '';
+}
+
+const settLogg = new Set();
+function ritaLogg(logg) {
+  const ul = document.getElementById('loggLista');
+  // Lägg bara till det nya. Att rita om hela listan varje poll får varje rad att blinka om.
+  for (const p of [...logg].reverse()) {
+    const nyckel = p.när + '|' + p.text;
+    if (settLogg.has(nyckel)) continue;
+    settLogg.add(nyckel);
+    const li = document.createElement('li');
+    if (p.nekad) li.className = 'nekad'; else if (p.id) li.className = 'post';
+    li.innerHTML = `<span class="tid">${klocka(p.när)}</span> ${esc(p.text)}`
+      + (p.orsak ? ` <span class="ors">↩${esc(p.orsak)}</span>` : '');
+    ul.prepend(li);
+  }
+  while (ul.children.length > 24) ul.lastChild.remove();
+}
+
+let spärrTimer = null;
+function ritaKnapp(s) {
+  const b = document.getElementById('lev');
+  const i = document.getElementById('levInfo');
+  clearTimeout(spärrTimer);
+  if (s.leverans_om > 0) {
+    b.disabled = true;
+    const kvar = Math.ceil(s.leverans_om / 1000);
+    i.textContent = `nästa om ${kvar} s`;
+    spärrTimer = setTimeout(() => ritaKnapp({ ...s, leverans_om: s.leverans_om - 1000 }), 1000);
+  } else {
+    b.disabled = false;
+    i.textContent = 'postar socker-levererat på pulsen';
+  }
+}
+
+let senast = 0;
+async function uppdatera() {
+  const nu = Date.now();
+  if (nu - senast < 400) return;
+  senast = nu;
+  try {
+    const s = await fetch('/t/christian/status', { cache: 'no-store' }).then(r => r.json());
+    ritaBand(s);
+    ritaMätare('silo', s.socker, 120, s.silo_larm, false);
+    ritaMätare('kö', s.kö, Math.max(s.kö_larm * 2, 16), s.kö_larm, true);
+    document.getElementById('lager').innerHTML = s.godis + ' <small>st</small>';
+    document.getElementById('pris').innerHTML = s.pris + ' <small>kr</small>'
+      + (s.elpris != null ? ` <small>· el ${esc(s.elpris)}</small>` : '');
+    document.getElementById('satser').textContent = s.räknare.satser;
+    document.getElementById('takt').innerHTML = `${s.takt.använt}<small>/${s.takt.egetTak}</small>`
+      + (s.takt.väntar.length ? ` <small>· ${s.takt.väntar.length} i kö</small>` : '');
+    ritaLogg(s.logg || []);
+    ritaKnapp(s);
+  } catch {}
+}
+
+document.getElementById('lev').addEventListener('click', async () => {
+  document.getElementById('lev').disabled = true;
+  try { await fetch('/t/christian/leverans', { method: 'POST' }); } catch {}
+  uppdatera();
+});
+
+uppdatera();
+setInterval(uppdatera, 3000);
+// Pulsen ger oss anledning att rita om direkt. /staden blinkar redan i rubrikraden,
+// så vi behöver ingen egen aktivitetsindikator.
+try {
+  const es = new EventSource('/api/stream?channel=staden-puls');
+  es.onmessage = () => { setTimeout(uppdatera, 150); setTimeout(uppdatera, 1600); };
+} catch {}
+</script>
+</body>
+</html>

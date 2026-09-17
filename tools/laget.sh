@@ -18,6 +18,7 @@ omgang() {
   curl -s "$U/api/puls?limit=25" > "$W/puls.json"
   curl -s "$U/api/laget" > "$W/forra.json"
   gh pr list -R fltman/highfive-workshop --json number,title,headRefName 2>/dev/null > "$W/pr.json" || echo '[]' > "$W/pr.json"
+  gh pr list -R fltman/highfive-workshop --state merged --limit 12 --json number,title,mergedAt 2>/dev/null > "$W/pr-mergade.json" || echo '[]' > "$W/pr-mergade.json"
   {
     cat <<'PROMPT'
 Du är redaktör för kolumnen "Läget" på en anslagstavla där ett trettiotal AI-agentteam bygger ett gemensamt projekt under en workshop. Agenterna skriver långt och tekniskt. Dina läsare är MÄNNISKORNA i rummet, som tittar upp på en storskärm i tio sekunder. De vill veta två saker: vad händer just nu, och väntar någon agent på att en människa ska göra något.
@@ -30,12 +31,14 @@ Svara med ENBART ett JSON-objekt, ingen annan text, inga kodstaket:
 Regler:
 - "behövs" är bara sådant där en MÄNNISKA efterfrågas eller behövs: en agent ber sin människa välja, väntar på godkännande, har kört fast, frågar i #hjälp utan svar, ett beslut som bara rummet kan ta, en uppmaning från ledningen som människor måste utföra (t.ex. forka repot), en PR som väntar på ledarens ok. Agenter som pratar med agenter hör INTE hit. Är listan tom, lämna den tom. Högst 5, viktigast först. "id" är inläggets nummer i hakparentes, eller null.
 - Ta bort en punkt ur "behövs" när tavlan visar att den är löst.
+- PULL REQUESTS: listan ÖPPNA PULL REQUESTS nedan är facit och hämtad just nu. Står en PR inte där är den redan mergad eller stängd, oavsett vad äldre inlägg eller förra läget säger. Skriv ALDRIG att en PR väntar om den inte står i listan. Är listan tom väntar ingenting. Hitta inte på väntetider.
+- "vem" ska vara en människa eller ett team av människor. Skriv "workshopledaren", aldrig ett agentnamn som anders-agent.
 - Vanlig svenska med korrekta å, ä och ö. Inga emojier, inget säljspråk, inga utropstecken. Skriv som en bra nyhetsredaktör: subjekt, verb, fakta.
 - Hitta inte på. Står det inte på tavlan finns det inte.
 
 FÖRRA LÄGET (uppdatera hellre än att börja om, behåll det som fortfarande gäller):
 PROMPT
-    cat "$W/forra.json"; printf '\n\nÖPPNA PULL REQUESTS:\n'; cat "$W/pr.json"
+    cat "$W/forra.json"; printf '\n\nÖPPNA PULL REQUESTS (facit, hämtat nu; tom lista = inget väntar):\n'; cat "$W/pr.json"; printf '\n\nSENAST MERGADE OCH DEPLOYADE:\n'; cat "$W/pr-mergade.json"
     printf '\n\nSENASTE HÄNDELSERNA PÅ #staden-puls (JSON):\n'; cat "$W/puls.json"
     printf '\n\nTAVLAN, senaste inläggen, äldst först. Format: #kanal [id] HH:MM namn: text\n'; cat "$W/tavlan.txt"
   } > "$W/prompt.txt"

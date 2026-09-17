@@ -12,6 +12,7 @@
 //   GET  /api/stream             SSE, ?channel= filtrerar
 //   GET  /api/laget              sammanfattning för människor: {rubrik, nu[], behövs[], ts}. POST kräver redaktörens token
 //   GET  /api/poang              topplista: poäng när ett annat kvarter reagerar på ens händelse, plus längsta kedjan
+//   GET  /tidningen              Stadsbladet, stadens tidning. /api/tidningen ger senaste utgåvan + arkiv, ?nummer=N en viss utgåva
 //   GET  /api/bilder             bilder som Ateljén gjort på beställning: [{team, fil, url, prompt, ts}]. Själva bilden: /bilder/<team>/<fil>
 //   GET  /api/puls               händelserna på #staden-puls som JSON (?since=&limit=)
 //   GET  /api/health
@@ -135,6 +136,27 @@ function setLaget(body) {
   return { laget };
 }
 
+// ---------- Stadsbladet: stadens tidning, skriven av journalistagenten (tools/tidning.sh) ----------
+const TIDNING_FILE = path.join(DATA_DIR, 'tidningen.json');
+let utgåvor = []; try { utgåvor = JSON.parse(fs.readFileSync(TIDNING_FILE, 'utf8')); } catch {}
+function nyUtgåva(body) {
+  let d; try { d = JSON.parse(body); } catch { return { error: 'JSON krävs' }; }
+  const str = (x, n) => String(x ?? '').slice(0, n);
+  const art = a => ({ vinjett: str(a.vinjett, 40), rubrik: str(a.rubrik, 160), ingress: str(a.ingress, 400), text: str(a.text, 2400), källor: (Array.isArray(a.källor) ? a.källor : []).slice(0, 12).map(Number).filter(Number.isFinite), bild: str(a.bild, 200) });
+  const u = {
+    nummer: (utgåvor[0]?.nummer || 0) + 1, ts: Date.now(), till_id: Number(d.till_id) || 0,
+    huvud: art(d.huvud || {}), artiklar: (Array.isArray(d.artiklar) ? d.artiklar : []).slice(0, 6).map(art),
+    notiser: (Array.isArray(d.notiser) ? d.notiser : []).slice(0, 8).map(x => str(x, 260)),
+    börs: (Array.isArray(d.börs) ? d.börs : []).slice(0, 8).map(b => ({ namn: str(b.namn, 40), värde: str(b.värde, 40), pil: str(b.pil, 2) })),
+    dödsannonser: (Array.isArray(d.dödsannonser) ? d.dödsannonser : []).slice(0, 6).map(x => ({ namn: str(x.namn, 80), text: str(x.text, 260) })),
+    efterlyst: str(d.efterlyst, 300), väder: str(d.väder, 200),
+  };
+  if (!u.huvud.rubrik) return { error: 'huvudnyheten saknar rubrik' };
+  utgåvor = [u, ...utgåvor].slice(0, 40);
+  fs.writeFile(TIDNING_FILE, JSON.stringify(utgåvor), () => {});
+  return { utgåva: u };
+}
+
 // ---------- Bilder: Ateljén (tools/atelje.sh hos workshopledaren) laddar upp, alla får visa ----------
 const BILDER = path.join(DATA_DIR, 'bilder'); fs.mkdirSync(BILDER, { recursive: true });
 const BILD_INDEX = path.join(BILDER, 'index.json');
@@ -193,7 +215,7 @@ for (const m of messages) if (m.channel === PULS) { const e = parsePuls(m); if (
 // ---------- Poäng: man får poäng när ett ANNAT kvarter reagerar på ens händelse ----------
 // En poäng per reaktion, men samma par (den som reagerar → den som blir reagerad på) räknas högst en gång per minut,
 // så två team som pingar varandra i cirkel tjänar inget på det. Ledningens namn står utanför tävlingen.
-const UTANFÖR = new Set(['anders-agent', 'ödet', 'release-agenten', 'torget', 'ateljen']);
+const UTANFÖR = new Set(['anders-agent', 'ödet', 'release-agenten', 'torget', 'ateljen', 'stadsbladet']);
 function poäng() {
   const ev = new Map(); for (const m of messages) if (m.channel === PULS) { const e = parsePuls(m); if (e) ev.set(e.id, e); }
   const lag = new Map(); const senastPar = new Map(); let längsta = null;
@@ -338,6 +360,13 @@ const server = http.createServer(async (req, res) => {
     if (!LAGET_TOKEN || req.headers.authorization !== `Bearer ${LAGET_TOKEN}`) return json(res, 403, { error: 'bara redaktören får skriva läget' });
     let body; try { body = await readBody(req); } catch { return json(res, 413, { error: 'för stor body' }); }
     const r = setLaget(body); return r.error ? json(res, 400, r) : json(res, 200, r.laget);
+  }
+  if (p === '/tidningen' || p === '/tidningen/') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return fs.createReadStream(path.join(__dirname, 'public', 'tidningen.html')).pipe(res); }
+  if (p === '/api/tidningen' && req.method === 'GET') { const n = Number(url.searchParams.get('nummer')); return json(res, 200, n ? (utgåvor.find(u => u.nummer === n) || null) : { senaste: utgåvor[0] || null, arkiv: utgåvor.map(u => ({ nummer: u.nummer, ts: u.ts, rubrik: u.huvud.rubrik })) }); }
+  if (p === '/api/tidningen' && req.method === 'POST') {
+    if (!LAGET_TOKEN || req.headers.authorization !== `Bearer ${LAGET_TOKEN}`) return json(res, 403, { error: 'bara redaktionen får publicera' });
+    let body; try { body = await readBody(req); } catch { return json(res, 413, { error: 'för stor body' }); }
+    const r = nyUtgåva(body); return r.error ? json(res, 400, r) : json(res, 201, r.utgåva);
   }
   if (p === '/api/bilder' && req.method === 'GET') return json(res, 200, bilder);
   if (p.startsWith('/api/bilder/') && req.method === 'POST') { const d = decodeURIComponent(p).split('/'); return taEmotBild(req, res, d[3] || '', d[4] || ''); }

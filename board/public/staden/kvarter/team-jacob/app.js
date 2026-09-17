@@ -69,9 +69,12 @@ function visaDom(d) {
     ? `${v.antalBetyg} grannar satte ${nummer(v.fitness)}, spridning ${nummer(v.stadensOsäkerhet)}`
     : `ingen granne betygsatte det — Domkapitlets egen heuristik gav ${nummer(v.fitness)}`;
 
-  $('spridning').textContent = d.spridningToppTvå === null
+  // Oavgjort är inte enighet. Säg det rakt ut i stället för att visa 0.00.
+  $('spridning').innerHTML = d.spridningToppTvå === null
     ? 'ensamt delsvar'
-    : `topp två skiljer ${nummer(d.spridningToppTvå)}`;
+    : d.oavgjort
+      ? '<span class="varning">oavgjort mellan topp två</span>'
+      : `topp två skiljer ${nummer(d.spridningToppTvå)}`;
 
   const kvar = d.kyrkogård.length;
   $('kyrkogård').innerHTML = d.ensamDomare

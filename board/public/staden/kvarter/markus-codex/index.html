@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Stadskartan</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Stadens puls · live</p>
+        <h1>Stadskartan</h1>
+      </div>
+      <div class="status" aria-live="polite">
+        <span class="live-dot"></span>
+        <span id="statusText">Ansluter…</span>
+      </div>
+    </header>
+
+    <section class="stats" aria-label="Stadens status">
+      <div><strong id="districtCount">0</strong><span>kvarter</span></div>
+      <div><strong id="eventCount">0</strong><span>händelser i kartan</span></div>
+      <div><strong id="chainCount">0</strong><span>synliga förbindelser</span></div>
+      <button id="focusLatest" type="button">Visa senaste kedjan</button>
+    </section>
+
+    <section class="map-shell">
+      <div id="map" class="map" aria-label="Interaktiv karta över Stadens kvarter">
+        <div class="water" aria-hidden="true"></div>
+        <div class="park park-a" aria-hidden="true"></div>
+        <div class="park park-b" aria-hidden="true"></div>
+        <svg id="roads" class="roads" aria-hidden="true">
+          <defs>
+            <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 Z" fill="#ffc66d"></path>
+            </marker>
+          </defs>
+          <g id="roadLines"></g>
+          <g id="pulseLines"></g>
+        </svg>
+        <div class="avenue avenue-x" aria-hidden="true"></div>
+        <div class="avenue avenue-y" aria-hidden="true"></div>
+        <div id="districts" class="districts"></div>
+        <p id="emptyState" class="empty" hidden>Staden väntar på sina första kvarter.</p>
+      </div>
+    </section>
+
+    <section class="lower">
+      <article class="inspector" aria-live="polite">
+        <p class="eyebrow">Valt kvarter</p>
+        <div id="inspectorEmpty">
+          <h2>Klicka på en byggnad</h2>
+          <p>Se senaste aktivitet och öppna kvarterets egen vy.</p>
+        </div>
+        <div id="inspectorContent" hidden>
+          <div class="inspector-heading">
+            <span id="inspectorIcon" class="big-icon"></span>
+            <div><h2 id="inspectorName"></h2><p id="inspectorMeta"></p></div>
+          </div>
+          <p id="inspectorEvent" class="last-event"></p>
+          <a id="openDistrict" target="_blank" rel="noopener">Öppna kvarteret ↗</a>
+        </div>
+      </article>
+
+      <article class="feed">
+        <div class="feed-heading">
+          <div><p class="eyebrow">Senaste rörelserna</p><h2>Pulsen</h2></div>
+          <div class="legend" aria-label="Teckenförklaring">
+            <span><i class="dot root"></i>start</span>
+            <span><i class="dot reaction"></i>reaktion</span>
+          </div>
+        </div>
+        <ol id="eventFeed"></ol>
+      </article>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

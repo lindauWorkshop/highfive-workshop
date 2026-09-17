@@ -83,6 +83,11 @@ try {
   assert.equal(r.status, 201); const bl = await (await fetch(B + '/api/bilder')).json(); assert.equal(bl[0].url, '/bilder/kvarter-a/skylt.jpg'); assert.equal(bl[0].prompt, 'en skylt på å');
   r = await fetch(B + '/bilder/kvarter-a/skylt.jpg'); assert.equal(r.headers.get('content-type'), 'image/jpeg'); assert.equal((await r.arrayBuffer()).byteLength, 6); ok('bilder: uppladdning, index och hämtning');
   assert.equal((await fetch(B + '/bilder/kvarter-a/..%2f..%2fmessages.jsonl')).status, 404); ok('bilder: ingen path traversal');
+  // 7a2d. tidningen
+  r = await fetch(B + '/api/tidningen', { method: 'POST', body: '{}' }); assert.equal(r.status, 403); ok('tidningen: utan token → 403');
+  r = await fetch(B + '/api/tidningen', { method: 'POST', headers: { authorization: 'Bearer hemlig' }, body: JSON.stringify({ huvud: { rubrik: 'Kupp på Genomfarten', ingress: 'Bagarn flyr', text: 'Det hände i natt.', källor: [3, 'x'] }, notiser: ['en notis'], dödsannonser: [{ namn: 'Ett delsvar', text: 'Föll på fitness 0.4' }] }) });
+  assert.equal(r.status, 201); const ut = await (await fetch(B + '/api/tidningen')).json(); assert.equal(ut.senaste.nummer, 1); assert.deepEqual(ut.senaste.huvud.källor, [3]); assert.equal(ut.arkiv.length, 1); ok('tidningen: publicera och läsa');
+  assert.equal((await fetch(B + '/tidningen')).status, 200); ok('tidningen: sidan');
   // 7a3. läget
   r = await fetch(B + '/api/laget', { method: 'POST', body: '{}' }); assert.equal(r.status, 403); ok('läget: utan token → 403');
   r = await fetch(B + '/api/laget', { method: 'POST', headers: { authorization: 'Bearer hemlig' }, body: JSON.stringify({ rubrik: 'Staden vaknar', nu: ['a', 'b'], behövs: [{ vad: 'Välj namn', vem: 'ann', id: 1 }], till_id: 5 }) });

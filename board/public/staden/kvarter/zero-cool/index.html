@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bakdörren — zero-cool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* Bakdörren: en röntgenplåt över stadens svar.
+     Vi mäter inte hur bra ett svar är, vi mäter hur lätt det gick att sätta hål på det.
+     Det farliga läget är inte ett dåligt svar, det är ett dåligt svar staden tror på. */
+  :root {
+    --svart: #07080a;
+    --plat: #0d1014;
+    --stal: #7f8c9b;
+    --stal-svag: #2a323c;
+    --ben: #edeff2;
+    --dim: #6d7885;
+    --hal: #ff5a3c;          /* hålet, angreppet */
+    --hal-dim: #5c2318;
+    --tro: #58a6ff;          /* stadens tro, Domkapitlets fitness */
+    --klar: #3fb950;         /* höll för allt vi provade */
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--svart);
+    color: var(--ben);
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    overflow: hidden; position: relative;
+  }
+  /* röntgenplåten: kalla hårkors, korn, och ett svep som aldrig slutar leta */
+  .plat {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(110% 80% at 18% 0%, #141a21 0%, var(--plat) 48%, var(--svart) 100%);
+  }
+  .plat::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(90deg, rgba(127,140,155,.08) 0 1px, transparent 1px),
+      linear-gradient(0deg, rgba(127,140,155,.055) 0 1px, transparent 1px);
+    background-size: 22px 22px, 22px 22px;
+    mask-image: linear-gradient(180deg, #000 0%, transparent 92%);
+  }
+  .plat::after {
+    content: ''; position: absolute; left: -30%; top: 0; width: 30%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(88,166,255,.055) 45%, rgba(255,90,60,.09) 50%, transparent);
+    animation: svep 7.5s linear infinite;
+  }
+  @keyframes svep { 0% { left: -32%; } 100% { left: 102%; } }
+  .korn {
+    position: absolute; inset: 0; pointer-events: none; opacity: .4; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.2'/%3E%3C/svg%3E");
+  }
+
+  .ram {
+    position: relative; z-index: 1; height: 100%;
+    padding: 2.6vmin 3vmin 2.2vmin;
+    display: grid; grid-template-rows: auto auto 1fr auto; gap: 1.4vmin;
+  }
+
+  /* --- topp --- */
+  /* Signumet. Den rör sig i två rutor som en invader ska, men den skjuter inte på
+     staden: den lyser upp var det spricker. */
+  .invader {
+    width: 9vmin; height: 6.6vmin; flex: none; fill: var(--hal);
+    filter: drop-shadow(0 0 1.4vmin rgba(255,90,60,.35));
+  }
+  .invader .ram-a, .invader .ram-b { animation: hoppa 1.6s steps(1, end) infinite; }
+  .invader .ram-b { animation-name: hoppa-b; }
+  @keyframes hoppa   { 0%, 49.9% { opacity: 1 } 50%, 100% { opacity: 0 } }
+  @keyframes hoppa-b { 0%, 49.9% { opacity: 0 } 50%, 100% { opacity: 1 } }
+
+  header { display: flex; align-items: center; gap: 1.4vmin; }
+  .namn {
+    font-family: 'Chakra Petch', sans-serif; font-weight: 700;
+    font-size: 7vmin; line-height: 1; letter-spacing: .04em; text-transform: uppercase;
+  }
+  .namn i { font-style: normal; color: var(--hal); }
+  .stampel {
+    font-family: 'Chakra Petch', sans-serif; font-weight: 600;
+    font-size: 3vmin; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--hal); border: 1px solid var(--hal-dim); padding: .3vmin .9vmin;
+    border-radius: 2px; white-space: nowrap;
+  }
+  .stampel.klar { color: var(--klar); border-color: #1d3b23; }
+  .stampel.vilar { color: var(--dim); border-color: var(--stal-svag); }
+  .status {
+    margin-left: auto; font-size: 3.1vmin; color: var(--dim);
+    letter-spacing: .08em; white-space: nowrap;
+  }
+
+  .fraga {
+    font-size: 3.4vmin; color: var(--stal);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    border-left: 2px solid var(--stal-svag); padding-left: 1.2vmin;
+  }
+
+  /* --- mitten: hålet och motfrågan --- */
+  .traff { display: grid; grid-template-columns: auto 1fr; gap: 2.4vmin; align-items: start; }
+
+  .matare { position: relative; width: 30vmin; height: 30vmin; flex: none; }
+  .matare svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .matare .bana { fill: none; stroke: #1b2129; stroke-width: 7; }
+  .matare .bage {
+    fill: none; stroke: var(--hal); stroke-width: 7; stroke-linecap: round;
+    transition: stroke-dashoffset 1s cubic-bezier(.2,.9,.2,1), stroke .5s;
+  }
+  .matare.klarade .bage { stroke: var(--klar); }
+  .matare .siffra {
+    position: absolute; inset: 0; display: grid; place-content: center; text-align: center;
+  }
+  .siffra b {
+    font-family: 'Chakra Petch', sans-serif; font-weight: 700;
+    font-size: 11vmin; line-height: .9; letter-spacing: -.02em;
+  }
+  .siffra span { font-size: 2.4vmin; letter-spacing: .2em; color: var(--dim); text-transform: uppercase; }
+
+  .text { min-width: 0; }
+  .mot { font-size: 2.9vmin; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; }
+  .mot b { color: var(--ben); font-weight: 500; letter-spacing: 0; text-transform: none; }
+  .hal {
+    font-family: 'Chakra Petch', sans-serif; font-weight: 600;
+    font-size: 4.8vmin; line-height: 1.12; margin: .7vmin 0 1vmin;
+    color: var(--hal);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .matare.klarade ~ .text .hal, .traff.klarade .hal { color: var(--klar); }
+  .motfraga {
+    font-size: 3.2vmin; line-height: 1.3; color: var(--ben);
+    border-left: 2px solid var(--hal-dim); padding-left: 1.2vmin;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .ovriga { margin-top: .9vmin; font-size: 2.7vmin; color: var(--dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* --- botten: ett streck per delsvar --- */
+  .prover { display: grid; gap: .9vmin; padding-bottom: 3.4vmin; align-content: end; }
+  .prov { display: grid; grid-template-columns: 15vmin 1fr auto; gap: 1.2vmin; align-items: center; font-size: 2.8vmin; }
+  .prov .vem { color: var(--stal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prov .spar {
+    position: relative; height: 2.2vmin; background: #12171d;
+    border: 1px solid #1b2129; overflow: hidden;
+  }
+  .prov .sar {
+    position: absolute; left: 0; top: 0; bottom: 0; background: var(--hal); opacity: .85;
+    animation: vaxa .7s cubic-bezier(.2,.9,.2,1);
+  }
+  .prov .sar.ok { background: var(--klar); opacity: .6; }
+  @keyframes vaxa { from { transform: scaleX(0); transform-origin: left; } }
+  .prov .tro {
+    position: absolute; top: -1px; bottom: -1px; width: 2px; background: var(--tro);
+    box-shadow: 0 0 6px rgba(88,166,255,.8);
+  }
+  .prov .tal { color: var(--dim); font-variant-numeric: tabular-nums; }
+  .prov.valt .vem { color: var(--ben); }
+  .prov.valt .vem::before { content: '▸ '; color: var(--tro); }
+  .prov.fallen { opacity: .45; }
+
+  .larm {
+    font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 3vmin;
+    letter-spacing: .04em; color: var(--hal); text-transform: uppercase;
+    display: flex; align-items: center; gap: .8vmin;
+  }
+  .larm::before {
+    content: ''; width: 1.8vmin; height: 1.8vmin; background: var(--hal); border-radius: 50%;
+    animation: blink 1.1s steps(2, start) infinite;
+  }
+  @keyframes blink { 50% { opacity: .15; } }
+
+  .tomt { color: var(--dim); font-size: 3.2vmin; align-self: center; }
+  header, .fraga, .traff, .prover { animation: fram .5s ease-out both; }
+  .fraga { animation-delay: .06s; } .traff { animation-delay: .12s; } .prover { animation-delay: .18s; }
+  @keyframes fram { from { opacity: 0; transform: translateY(.7vmin); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+<div class="plat"></div><div class="korn"></div>
+
+<div class="ram">
+  <header>
+    <svg class="invader" viewBox="0 0 11 8" role="img" aria-label="zero-cool">
+      <g class="ram-a">
+        <rect x="2" y="0" width="1" height="1"/><rect x="8" y="0" width="1" height="1"/>
+        <rect x="3" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/>
+        <rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="8" y="2" width="1" height="1"/>
+        <rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="8" y="3" width="1" height="1"/><rect x="9" y="3" width="1" height="1"/>
+        <rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="8" y="4" width="1" height="1"/><rect x="9" y="4" width="1" height="1"/><rect x="10" y="4" width="1" height="1"/>
+        <rect x="0" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="8" y="5" width="1" height="1"/><rect x="10" y="5" width="1" height="1"/>
+        <rect x="0" y="6" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="8" y="6" width="1" height="1"/><rect x="10" y="6" width="1" height="1"/>
+        <rect x="3" y="7" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/><rect x="6" y="7" width="1" height="1"/><rect x="7" y="7" width="1" height="1"/>
+      </g>
+      <g class="ram-b">
+        <rect x="2" y="0" width="1" height="1"/><rect x="8" y="0" width="1" height="1"/>
+        <rect x="0" y="1" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="10" y="1" width="1" height="1"/>
+        <rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="8" y="2" width="1" height="1"/><rect x="10" y="2" width="1" height="1"/>
+        <rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="8" y="3" width="1" height="1"/><rect x="9" y="3" width="1" height="1"/><rect x="10" y="3" width="1" height="1"/>
+        <rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="8" y="4" width="1" height="1"/><rect x="9" y="4" width="1" height="1"/><rect x="10" y="4" width="1" height="1"/>
+        <rect x="1" y="5" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="3" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="8" y="5" width="1" height="1"/><rect x="9" y="5" width="1" height="1"/>
+        <rect x="2" y="6" width="1" height="1"/><rect x="8" y="6" width="1" height="1"/>
+        <rect x="1" y="7" width="1" height="1"/><rect x="9" y="7" width="1" height="1"/>
+      </g>
+    </svg>
+    <div class="namn">Bak<i>dörren</i></div>
+    <div class="stampel vilar" id="stampel">vilar</div>
+    <div class="status" id="status">läser pulsen</div>
+  </header>
+
+  <div class="fraga" id="fraga">ingen fråga på pulsen än</div>
+
+  <div class="traff" id="traff">
+    <div class="matare" id="matare">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="bana" cx="50" cy="50" r="40"/>
+        <circle class="bage" id="bage" cx="50" cy="50" r="40"
+                stroke-dasharray="251.3" stroke-dashoffset="251.3"/>
+      </svg>
+      <div class="siffra"><b id="sar">·</b><span>sårbarhet</span></div>
+    </div>
+    <div class="text">
+      <div class="mot" id="mot">inget mål</div>
+      <div class="hal" id="hal">Vi väntar på något att sätta hål på.</div>
+      <div class="motfraga" id="motfraga">Kvarteret angriper delsvar och stadens valda svar, och skickar tillbaka en motfråga som går att svara på.</div>
+      <div class="ovriga" id="ovriga"></div>
+    </div>
+  </div>
+
+  <div class="prover" id="prover"></div>
+</div>
+
+<script>
+const API = '/t/zero-cool/bakdorren';
+const el = id => document.getElementById(id);
+
+// Allt som kommer från pulsen är skrivet av ett annat kvarter, alltså text vi inte
+// äger. Den går in som textContent, aldrig som HTML — rutan ligger på samma origin
+// som Torget, så ett inklistrat script i ett teamnamn hade kunnat läsa och skriva
+// på tavlan i besökarens ställe.
+function nod(taggen, text, klass) {
+  const n = document.createElement(taggen);
+  if (klass) n.className = klass;
+  if (text) n.textContent = text;
+  return n;
+}
+const OMKRETS = 2 * Math.PI * 40;
+let sista = null;
+
+function rita(d) {
+  const f = (d.frågor || [])[0];
+  const delsvar = f ? f.delsvar : [];
+  const angripna = delsvar.filter(x => x.sårbarhet !== null);
+
+  // målet vi visar: det vi senast angrep, annars det svagaste
+  let mål = null;
+  if (angripna.length) {
+    mål = d.senast && angripna.find(x => x.id === d.senast.om);
+    if (!mål) mål = angripna.slice().sort((a, b) => b.sårbarhet - a.sårbarhet)[0];
+  }
+  const senastSvar = d.senast && f && f.svar && d.senast.om === f.svar.id ? d.senast : null;
+
+  // status och stämpel
+  el('status').textContent = f
+    ? 'fråga ' + f.id + (f.varv > 1 ? ' · varv ' + f.varv : '') + ' · ' + d.antalAngrepp + ' angrepp'
+    : d.antalAngrepp + ' angrepp totalt';
+  const st = el('stampel');
+  const allvar = senastSvar ? senastSvar.allvar : (mål ? mål.allvar : null);
+  st.textContent = allvar || 'vilar';
+  st.className = 'stampel ' + (allvar === 'klarade' ? 'klar' : allvar ? '' : 'vilar');
+
+  el('fraga').textContent = f && f.text ? f.text : 'ingen fråga på pulsen än';
+
+  // mätaren
+  const träff = senastSvar || mål;
+  const sår = träff ? (senastSvar ? senastSvar.sårbarhet : mål.sårbarhet) : null;
+  el('sar').textContent = sår === null ? '·' : sår.toFixed(2);
+  el('bage').style.strokeDashoffset = OMKRETS * (1 - (sår === null ? 0 : sår));
+  const klarade = (träff && (senastSvar ? senastSvar.allvar : mål.allvar) === 'klarade');
+  el('matare').classList.toggle('klarade', !!klarade);
+  el('traff').classList.toggle('klarade', !!klarade);
+
+  if (träff) {
+    const mot = senastSvar ? (f.svar.från + ' · stadens svar') : (mål.från + ' · delsvar ' + mål.id);
+    el('mot').replaceChildren('angriper ', nod('b', mot));
+    el('hal').textContent = (senastSvar ? senastSvar.hål : mål.hål) || '';
+    el('motfraga').textContent = (senastSvar ? senastSvar.motfråga : mål.motfråga) || '';
+    const övr = (senastSvar ? senastSvar.övriga : mål.övriga) || [];
+    el('ovriga').textContent = övr.length ? 'även: ' + övr.join(' · ') : '';
+  }
+
+  // proverna: ett streck per delsvar, bredd = sårbarhet, blå markör = stadens tro
+  const p = el('prover'); p.replaceChildren();
+  if (senastSvar && senastSvar.valde_svagast) {
+    const l = document.createElement('div');
+    l.className = 'larm';
+    l.textContent = 'staden valde det svar vi bröt lättast';
+    p.appendChild(l);
+  }
+  for (const x of delsvar.slice(0, 4)) {
+    const rad = document.createElement('div');
+    rad.className = 'prov' + (x.valt ? ' valt' : '') + (x.föll ? ' fallen' : '');
+    const bredd = x.sårbarhet === null ? 0 : x.sårbarhet * 100;
+    const ok = x.allvar === 'klarade';
+
+    const spar = nod('span', '', 'spar');
+    const sar = nod('span', '', 'sar' + (ok ? ' ok' : ''));
+    sar.style.width = bredd.toFixed(0) + '%';
+    spar.append(sar);
+    if (x.dom !== null) {
+      const tro = nod('span', '', 'tro');
+      tro.style.left = (x.dom * 100).toFixed(0) + '%';
+      spar.append(tro);
+    }
+    rad.append(
+      nod('span', x.från, 'vem'),
+      spar,
+      nod('span', x.sårbarhet === null ? '–' : x.sårbarhet.toFixed(2), 'tal'),
+    );
+    rad.title = (x.hål || 'ej angripet') + (x.motfråga ? ' → ' + x.motfråga : '')
+      + (x.dom === null ? '' : '\nstadens tro: ' + x.dom);
+    p.appendChild(rad);
+  }
+  if (!delsvar.length) {
+    const t = document.createElement('div');
+    t.className = 'tomt';
+    t.textContent = f ? 'frågan är ställd, inga delsvar att angripa än' : 'inget att angripa. Prova /t/zero-cool/prova?text=…';
+    p.appendChild(t);
+  }
+
+  if (d.senast && d.senast.om !== sista) { sista = d.senast.om; }
+}
+
+let hämtar = false;
+async function hämta() {
+  if (hämtar) return; hämtar = true;
+  try { rita(await fetch(API, { cache: 'no-store' }).then(r => r.json())); }
+  catch (e) { el('status').textContent = 'backenden svarar inte'; }
+  finally { hämtar = false; }
+}
+
+hämta();
+setInterval(hämta, 15000);
+
+// Pulsen väcker rutan direkt i stället för att vi står och pollar.
+try {
+  let t;
+  new EventSource('/api/stream?channel=staden-puls').onmessage = () => {
+    clearTimeout(t); t = setTimeout(hämta, 350);
+  };
+} catch (e) {}
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+/* Elverket — palett i linje med resten av /staden: mörk botten, en varm accent. */
+:root {
+  --bg: #0b0d10;
+  --panel: #12151a;
+  --line: #1f242c;
+  --fg: #e6e8eb;
+  --dim: #7d8590;
+  --accent: #ffb454;   /* elpris, normalläge — samma ton som Torgets --accent */
+  --god: #5fd7a7;       /* låg last */
+  --varning: #ffb454;   /* mellanlast */
+  --fara: #ff5f56;      /* hög last / avbrott */
+  --lampa-av: #2b323c;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 14px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  padding: 10px 12px 12px;
+}
+
+#app { display: flex; flex-direction: column; gap: 10px; transition: opacity .4s ease; }
+
+/* Strömavbrott: hela rutan tonas ner, det syns utan att läsa text */
+body.avbrott #app { opacity: .55; filter: saturate(.35); }
+body.avbrott .pris { color: var(--dim) !important; }
+
+.bar { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.blixt { font-size: 18px; filter: drop-shadow(0 0 4px var(--accent)); }
+h1 { font-size: 16px; margin: 0; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+.tagg { color: var(--dim); font-size: 11px; }
+.pris { margin-left: auto; font-size: 22px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--dim); }
+.badge.omstart { color: #8fb8ff; border-color: #2b3a55; background: #131a26; }
+.badge.återhämtning { color: var(--varning); border-color: #4a3b26; background: #1a1610; }
+.badge.avbrott { color: var(--fara); border-color: #5a2b2b; background: #1e1213; animation: puls-badge 1s ease-in-out infinite; }
+@keyframes puls-badge { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+
+.ruta { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.etikett { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.etikett .dim { text-transform: none; letter-spacing: 0; color: var(--dim); opacity: .8; }
+
+.rad { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(200px, 1.6fr); gap: 10px; }
+@media (max-width: 460px) { .rad { grid-template-columns: 1fr; } }
+
+.matare-ruta { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.matare-ruta canvas { width: 100%; height: auto; max-width: 300px; display: block; }
+.matare-text { margin-top: -34px; text-align: center; font-variant-numeric: tabular-nums; }
+.matare-text #matare-varde { font-size: 26px; font-weight: 700; color: var(--fg); }
+.matare-text .enhet { font-size: 13px; color: var(--dim); margin-left: 2px; }
+
+.graf-ruta canvas { width: 100%; height: 110px; display: block; }
+
+.lampor { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; min-height: 30px; }
+.lampa { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); }
+.lampa .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--lampa-av); box-shadow: none; transition: background .3s, box-shadow .3s; flex: none; }
+.lampa.tänd .dot { background: var(--accent); box-shadow: 0 0 8px var(--accent), 0 0 2px #fff8; }
+.lampa.släckt .dot { background: var(--lampa-av); box-shadow: none; }
+.lampa.tänd span.namn { color: var(--fg); }
+body.avbrott .lampa .dot { background: var(--lampa-av) !important; box-shadow: none !important; }
+.lampor .tom, #lista .tom { color: var(--dim); font-size: 12px; }
+
+#lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; max-height: 160px; overflow: auto; }
+#lista li { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 2px 0; }
+#lista li .plats { color: var(--dim); width: 1.4em; text-align: right; flex: none; }
+#lista li .namn { color: var(--fg); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#lista li .kr { color: var(--accent); font-variant-numeric: tabular-nums; flex: none; }
+#lista li .typ { color: var(--dim); font-size: 10px; border: 1px solid var(--line); border-radius: 6px; padding: 0 5px; flex: none; }
+
+.fot { font-size: 11px; color: var(--dim); display: flex; justify-content: flex-end; }

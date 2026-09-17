@@ -6,8 +6,8 @@
 <title>Genomfarten — willebus</title>
 <style>
   :root {
-    --bg: #10131a; --gata: #23262f; --linje: #d7b04a; --text: #e8eaf0;
-    --dim: #8b90a0; --siren1: #ff3b3b; --siren2: #3b6bff; --stjärna: #ffd23b;
+    --bg: #10131a; --panel: #191d27; --gata: #23262f; --linje: #d7b04a; --text: #e8eaf0;
+    --dim: #8b90a0; --siren1: #ff3b3b; --siren2: #3b6bff; --stjärna: #ffd23b; --grip: #ff4d4d; --ok: #6fd08c;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
@@ -23,31 +23,45 @@
   .stjärnor { font-size: 20px; letter-spacing: 2px; color: #3a3d47; }
   .stjärnor b { color: var(--stjärna); font-weight: 400; }
   .scen {
-    position: relative; height: 120px; border-radius: 12px; overflow: hidden;
-    background: var(--gata);
+    position: relative; height: 110px; border-radius: 12px; overflow: hidden; background: var(--gata);
     background-image: repeating-linear-gradient(90deg, transparent 0 44px, var(--linje) 44px 76px);
     background-position-y: center; background-size: 100% 6px; background-repeat: no-repeat;
   }
-  .bil {
-    position: absolute; top: 50%; transform: translateY(-50%); left: -80px; font-size: 40px;
-    transition: left 6s linear;
-  }
+  .bil { position: absolute; top: 50%; transform: translateY(-50%); left: -80px; font-size: 40px; transition: left 8s linear; }
   .scen.jakt .bil { left: calc(100% + 80px); }
   .scen.tom .bil { display: none; }
   .siren { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
   .scen.jakt .siren { opacity: 1; animation: blink .5s steps(1) infinite; }
   @keyframes blink { 0% { box-shadow: inset 0 0 60px 8px var(--siren1); } 50% { box-shadow: inset 0 0 60px 8px var(--siren2); } }
+
+  .grip-panel { display: none; flex-direction: column; gap: 8px; }
+  .grip-panel.på { display: flex; }
+  #grip {
+    background: var(--grip); color: #fff; border: 0; border-radius: 10px; padding: 16px;
+    font-size: 20px; font-weight: 800; letter-spacing: 1px; cursor: pointer;
+  }
+  #grip:active { transform: translateY(1px); }
+  .mätare { height: 14px; border-radius: 8px; background: #2a2e39; overflow: hidden; }
+  .mätare > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--stjärna), var(--ok)); transition: width .2s; }
+
   .status { font-size: 14px; color: var(--dim); min-height: 20px; }
   .status b { color: var(--text); }
-  button {
-    background: var(--linje); color: #1a1400; border: 0; border-radius: 8px;
-    padding: 9px 14px; font-size: 14px; font-weight: 600; cursor: pointer;
+
+  fieldset { border: 1px solid #2a2e39; border-radius: 10px; padding: 10px 12px; background: var(--panel); }
+  legend { color: var(--dim); font-size: 12px; padding: 0 6px; }
+  .form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  select, input {
+    background: #11141c; color: var(--text); border: 1px solid #2a2e39; border-radius: 8px;
+    padding: 7px 9px; font-size: 14px;
   }
-  button:active { transform: translateY(1px); }
+  input { width: 130px; }
+  button.knapp { background: var(--linje); color: #1a1400; border: 0; border-radius: 8px; padding: 8px 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  button.knapp:active { transform: translateY(1px); }
+
   ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
   li { font-size: 13px; color: var(--dim); display: flex; gap: 8px; }
   li .ik { width: 18px; text-align: center; }
-  li .in { color: #6fd08c; } li .ut { color: #ff9f6f; } li .kupp { color: var(--siren1); }
+  li .in, li .larm { color: #ffd27f; } li .ut { color: #ff9f6f; } li .kupp { color: var(--siren1); } li .gripen { color: var(--ok); }
 </style>
 </head>
 <body>
@@ -59,7 +73,6 @@
   <div class="rad">
     <span class="stjärnor" id="wanted">☆☆☆☆☆</span>
     <span class="tagg" id="poliser"></span>
-    <button id="kupp">Starta en kupp</button>
   </div>
 
   <div class="scen tom" id="scen">
@@ -67,48 +80,87 @@
     <div class="bil">🚗</div>
   </div>
 
+  <div class="grip-panel" id="gripPanel">
+    <button id="grip">🚨 GRIP! — tryck allihop</button>
+    <div class="mätare"><i id="gripFyll"></i></div>
+  </div>
+
   <div class="status" id="status">Lugnt på Genomfarten.</div>
+
+  <fieldset>
+    <legend>Bygg din egen kupp</legend>
+    <div class="form">
+      <select id="plats" title="Målkvarter"></select>
+      <input id="forare" placeholder="förare (valfritt)" maxlength="40">
+      <select id="wantedVal" title="Wanted">
+        <option value="1">1★</option><option value="2">2★</option><option value="3" selected>3★</option>
+        <option value="4">4★</option><option value="5">5★</option>
+      </select>
+      <button class="knapp" id="kupp">Starta kupp</button>
+    </div>
+  </fieldset>
+
   <ul id="logg"></ul>
 
 <script>
   const bas = '/t/willebus';
-  const ikon = { in: '↘', ut: '↗', kupp: '💥', gripen: '🚔', slut: '·', patrull: '👮', delsvar: '💬', mörker: '🌑', brist: '🍬', out: '·' };
+  const ikon = { in: '↘', ut: '↗', kupp: '💥', gripen: '🚔', slut: '·', patrull: '👮', delsvar: '💬', mörker: '🌑', brist: '🍬', larm: '🚨', dom: '⚖️', out: '·' };
+  let platserFyllda = false;
 
   async function tick() {
     let s;
     try { s = await (await fetch(bas + '/state')).json(); } catch { return; }
 
+    if (!platserFyllda && Array.isArray(s.platser)) {
+      const sel = document.getElementById('plats');
+      sel.innerHTML = s.platser.map(p => '<option>' + p + '</option>').join('');
+      platserFyllda = true;
+    }
+
     const w = Math.max(0, Math.min(5, s.wanted | 0));
-    document.getElementById('wanted').innerHTML =
-      '<b>' + '★'.repeat(w) + '</b>' + '☆'.repeat(5 - w);
+    document.getElementById('wanted').innerHTML = '<b>' + '★'.repeat(w) + '</b>' + '☆'.repeat(5 - w);
+    document.getElementById('poliser').textContent = s.poliserUte ? '👮 ' + s.poliserUte + ' patruller ute' : '';
 
-    document.getElementById('poliser').textContent =
-      s.poliserUte ? '👮 ' + s.poliserUte + ' patruller ute' : '';
+    document.getElementById('scen').className = 'scen ' + (s.harJakt ? 'jakt' : 'tom');
 
-    const scen = document.getElementById('scen');
-    scen.className = 'scen ' + (s.harJakt ? 'jakt' : 'tom');
+    const panel = document.getElementById('gripPanel');
+    panel.className = 'grip-panel' + (s.harJakt ? ' på' : '');
+    if (s.harJakt) {
+      const andel = s.gripMål ? Math.min(100, Math.round(100 * (s.gripTryck || 0) / s.gripMål)) : 0;
+      document.getElementById('gripFyll').style.width = andel + '%';
+      document.getElementById('grip').textContent = '🚨 GRIP! — ' + (s.gripTryck || 0) + ' / ' + s.gripMål;
+    }
 
     document.getElementById('status').innerHTML = s.harJakt
-      ? 'Jakten pågår — <b>' + (s.förare || 'okänd') + '</b> flyr genom kvarteret.'
-      : (w > 0 ? 'Wanted svalnar…' : 'Lugnt på Genomfarten.');
+      ? 'Jakten pågår — <b>' + (s.förare || 'okänd') + '</b> flyr genom kvarteret. Tryck GRIP tillsammans!'
+      : (w > 0 ? 'Wanted svalnar…' : 'Lugnt på Genomfarten. Starta en kupp!');
 
     const logg = document.getElementById('logg');
     logg.innerHTML = '';
     (s.senaste || []).forEach((e) => {
       const li = document.createElement('li');
-      const kl = e.typ === 'in' ? 'in' : (e.typ === 'ut' ? 'ut' : (e.typ === 'kupp' ? 'kupp' : ''));
-      li.innerHTML = '<span class="ik ' + kl + '">' + (ikon[e.typ] || '·') + '</span><span>' + e.text + '</span>';
+      li.innerHTML = '<span class="ik ' + (e.typ || '') + '">' + (ikon[e.typ] || '·') + '</span><span>' + e.text + '</span>';
       logg.appendChild(li);
     });
   }
 
+  document.getElementById('grip').addEventListener('click', async () => {
+    try { await fetch(bas + '/grip', { method: 'POST' }); } catch {}
+    tick();
+  });
+
   document.getElementById('kupp').addEventListener('click', async () => {
-    try { await fetch(bas + '/kupp', { method: 'POST' }); } catch {}
+    const body = {
+      plats: document.getElementById('plats').value,
+      förare: document.getElementById('forare').value,
+      wanted: Number(document.getElementById('wantedVal').value),
+    };
+    try { await fetch(bas + '/kupp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); } catch {}
     tick();
   });
 
   tick();
-  setInterval(tick, 2000);
+  setInterval(tick, 1500);
 </script>
 </body>
 </html>

@@ -7,3 +7,4 @@ labs/*/.claude/settings.local.json
 projects/*/.claude/settings.local.json
 .laget-token
 .atelje-state.json
+.tidning-state

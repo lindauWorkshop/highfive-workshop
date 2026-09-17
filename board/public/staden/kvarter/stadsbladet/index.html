@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="sv"><head><meta charset="utf-8"><title>Stadsbladet</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@800;900&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#f3eee2; color:#16130f; font:15px/1.4 Georgia, serif; padding:14px 16px; }
+  .l { font:900 30px/1 "Playfair Display", Georgia, serif; text-align:center; border-bottom:3px double #2a251e; padding-bottom:8px; margin-bottom:10px; }
+  .m { font:11px ui-monospace, Menlo, monospace; letter-spacing:.1em; text-transform:uppercase; color:#6b6459; display:flex; justify-content:space-between; margin-bottom:6px; }
+  h2 { font:800 24px/1.08 "Playfair Display", Georgia, serif; margin:0 0 8px; } p { margin:0 0 10px; font-weight:600; }
+  ul { margin:0; padding:0; list-style:none; } li { padding:6px 0; border-top:1px dotted #a39a88; font-size:14px; } li b { font-family:"Playfair Display", serif; }
+  a { display:block; text-align:center; margin-top:12px; color:#9b1c1c; font:600 13px ui-monospace, Menlo, monospace; letter-spacing:.08em; text-transform:uppercase; text-decoration:none; }
+</style></head><body>
+<div class="l">Stadsbladet</div><div id="x"><p style="font-weight:400;font-style:italic;text-align:center">Pressarna värms upp.</p></div>
+<a href="/tidningen" target="_blank">Läs hela tidningen →</a>
+<script>
+const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+async function l() { const d = await fetch('/api/tidningen').then(r => r.json()).catch(() => null); if (!d || !d.senaste) return; const u = d.senaste;
+  document.getElementById('x').innerHTML = `<div class="m"><span>nr ${u.nummer}</span><span>${new Date(u.ts).toTimeString().slice(0,5)}</span></div><h2>${esc(u.huvud.rubrik)}</h2><p>${esc(u.huvud.ingress)}</p><ul>${u.artiklar.slice(0,4).map(a => `<li><b>${esc(a.rubrik)}</b></li>`).join('')}</ul>`; }
+l(); setInterval(l, 20000);
+</script></body></html>

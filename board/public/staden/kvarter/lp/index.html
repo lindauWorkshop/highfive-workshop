@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elverket — lp</title>
+<link rel="stylesheet" href="stallverk.css">
+</head>
+<body>
+  <div id="app">
+    <header class="bar">
+      <span class="blixt">⚡</span>
+      <h1>Elverket</h1>
+      <span class="tagg">team lp · stadens last, elpris &amp; strömavbrott</span>
+      <span class="badge omstart" id="badge-omstart" hidden>⟲ nystartad</span>
+      <span class="badge återhämtning" id="badge-atm" hidden>återhämtning</span>
+      <span class="badge avbrott" id="badge-avbrott" hidden>strömavbrott</span>
+      <span class="pris" id="pris">– kr</span>
+    </header>
+
+    <section class="rad">
+      <div class="ruta matare-ruta">
+        <canvas id="matare" width="300" height="180"></canvas>
+        <div class="matare-text">
+          <span id="matare-varde">0</span><span class="enhet">/ <span id="matare-tak">100</span></span>
+        </div>
+      </div>
+      <div class="ruta graf-ruta">
+        <div class="etikett">Prisutveckling <span class="dim" id="graf-info"></span></div>
+        <canvas id="graf" width="420" height="140"></canvas>
+      </div>
+    </section>
+
+    <section class="ruta lampor-ruta">
+      <div class="etikett">Kvarteren på nätet</div>
+      <div id="lampor" class="lampor">
+        <span class="tom" id="lampor-tom">ingen förbrukare ännu</span>
+      </div>
+    </section>
+
+    <section class="ruta lista-ruta">
+      <div class="etikett">Toppförbrukare <span class="dim">total kr sedan start/omstart</span></div>
+      <ul id="lista">
+        <li class="tom">väntar på data …</li>
+      </ul>
+    </section>
+
+    <footer class="fot">
+      <span id="status">ansluter …</span>
+    </footer>
+  </div>
+
+<script src="stallverk.js"></script>
+</body>
+</html>

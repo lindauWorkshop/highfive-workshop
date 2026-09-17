@@ -40,6 +40,13 @@ function median(tal) {
 
 // Vår egen siffra. Den är en heuristik och inget annat: den mäter om delsvaret
 // bemödat sig om en motivering och om det pekar på något kontrollerbart.
+//
+// Den är med flit TAKAD under 1.0. Första domen i skarp drift ([199]) valde ett
+// delsvar vi själva gissat 0.9 på framför ett som en granne faktiskt läst och satt
+// 0.8 på. Vår ordräknare vann över en riktig bedömning, tvärtemot det vi lovade
+// staden i [91]. En ogissad siffra är svagare bevisning och ska väga mindre.
+const HEURISTIK_TAK = 0.7;
+
 function heuristik(delsvar) {
   const n = delsvar.nyttolast || {};
   const text = String(n.text ?? (typeof n === 'string' ? n : '') ?? '');
@@ -52,7 +59,7 @@ function heuristik(delsvar) {
   if (/\[\d+\]|\bid\s*\d+/i.test(motiv + text)) p += 0.15;  // citerar tavlan med id
   if (/\d/.test(text)) p += 0.05;                    // har en siffra att ta på
   if (text.trim().length < 15) p -= 0.15;            // tomt svar
-  return Math.max(0, Math.min(1, Number(p.toFixed(2))));
+  return Math.max(0, Math.min(HEURISTIK_TAK, Number(p.toFixed(2))));
 }
 
 function döm(delsvar, betyg) {
@@ -156,7 +163,10 @@ function avgör(frågeId) {
       motivering: String((d.nyttolast || {}).motivering ?? '').slice(0, 1200),
       ...dom,
     };
-  }).sort((a, b) => b.fitness - a.fitness);
+  }).sort((a, b) =>
+    b.fitness - a.fitness                                    // högst fitness först
+    || (b.källa === 'grannar') - (a.källa === 'grannar')      // lika: den som faktiskt lästs av en granne
+    || a.id - b.id);                                         // lika ändå: den som kom först
 
   const vinnare = bedömda[0] || null;
   const fallna = bedömda.slice(1);
@@ -164,7 +174,9 @@ function avgör(frågeId) {
   // Skälet skrivs en gång och följer med både stenen på bussen och den på disken.
   // [85]: hela kyrkogården, varenda fallet delsvar med betyg OCH skäl.
   for (const f of fallna) {
-    f.varför = `Fitness ${f.fitness} mot ${vinnare.fitness}. ${
+    const lika = f.fitness === vinnare.fitness;
+    f.varför = `${lika ? `Oavgjort på ${f.fitness}: vi kunde inte skilja det från vinnaren.`
+                       : `Fitness ${f.fitness} mot ${vinnare.fitness}.`} ${
       f.källa === 'grannar'
         ? `Median av ${f.antalBetyg} betyg från grannkvarteren.`
         : 'Ingen granne hann betygsätta det här, så Domkapitlet dömde ensamt på egen heuristik.'
@@ -173,6 +185,9 @@ function avgör(frågeId) {
   const spridningToppTvå = bedömda.length > 1
     ? Number((bedömda[0].fitness - bedömda[1].fitness).toFixed(2))
     : null;
+  // Spridning 0 är inte säkerhet, det är oavgjort: vi kunde inte skilja de två åt.
+  // Det ska synas, annars läser staden vår oförmåga som enighet.
+  const oavgjort = spridningToppTvå === 0;
 
   const dom = {
     fråga: { id: s.fråga.id, från: s.fråga.från, text: textAv(s.fråga).slice(0, 600), ts: s.fråga.ts },
@@ -182,6 +197,7 @@ function avgör(frågeId) {
     kyrkogård: fallna,
     spridningToppTvå,
     påBussen: Math.min(fallna.length, MAX_STENAR),
+    oavgjort,
     ensamDomare: bedömda.length > 0 && bedömda.every((b) => b.källa === 'heuristik'),
   };
 
@@ -205,6 +221,7 @@ function avgör(frågeId) {
       antalBetyg: vinnare.antalBetyg,
       stadensOsäkerhet: vinnare.stadensOsäkerhet,
       spridningToppTvå,
+      oavgjort,
       antalDelsvar: bedömda.length,
       kyrkogårdsdjup: fallna.length,
     }, s.fråga.id);

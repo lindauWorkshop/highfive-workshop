@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="sv"><head><meta charset="utf-8"><title>MyBank</title>
+<style>
+  :root{--bg:#07110d;--kort:#0d1c16;--kant:#1d3a2e;--fg:#e8f2ec;--dim:#7f9a8c;--guld:#e9c46a;--grön:#3ddc97;--röd:#ff5d5d}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+  header{padding:12px 14px 10px;border-bottom:1px solid var(--kant);background:linear-gradient(180deg,#0f2a1f,transparent)}
+  /* Logotypen: klassisk, symmetrisk och stel. Inga animationer här. */
+  .logo{display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 0 10px}
+  .logo svg{width:54px;height:auto;display:block}
+  .logo h1{margin:0;padding:5px 18px 4px;border-top:3px double var(--guld);border-bottom:3px double var(--guld);font:400 26px/1 "Baskerville","Big Caslon","Book Antiqua","Palatino Linotype",Georgia,"Times New Roman",serif;letter-spacing:.34em;text-indent:.34em;text-transform:uppercase;color:var(--guld)}
+  .logo .grundad{font:400 9px/1 Georgia,"Times New Roman",serif;letter-spacing:.42em;text-indent:.42em;text-transform:uppercase;color:var(--dim)}
+  .rad1{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border-top:1px solid var(--kant);padding-top:8px}
+  .slogan{color:var(--dim);font-style:italic;font-family:Georgia,serif}
+  .valuta{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--guld);border:1px solid var(--guld);border-radius:3px;padding:1px 6px}
+  .ränta{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--guld)}
+  .ägande{margin-top:9px}
+  .ägande .etikett{display:flex;justify-content:space-between;color:var(--dim);font-size:12px}
+  .ägande .etikett b{color:var(--fg);font-weight:600}
+  .stapel{height:8px;background:#132a20;border-radius:4px;overflow:hidden;margin-top:4px}
+  .stapel i{display:block;height:100%;background:linear-gradient(90deg,var(--guld),var(--röd));transition:width .8s}
+  .övertagen{margin-top:8px;padding:6px 10px;border:1px solid var(--röd);border-radius:6px;color:var(--röd);font-weight:600;text-align:center;animation:puls 2s infinite}
+  @keyframes puls{50%{background:#2a0e0e}}
+  main{padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+  h2{margin:0 0 6px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-weight:600}
+  .konton{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px}
+  .k{background:var(--kort);border:1px solid var(--kant);border-radius:8px;padding:7px 9px}
+  .k.uppköpt{border-color:var(--röd);background:#1c0f0f}
+  .k .namn{display:flex;justify-content:space-between;font-weight:600;word-break:break-word}
+  .k .namn small{color:var(--dim);font-weight:400}
+  .k dl{margin:4px 0 5px;display:grid;grid-template-columns:auto 1fr;gap:0 8px;font-size:12px}
+  .k dt{color:var(--dim)} .k dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+  .skuld{color:var(--röd)}
+  .k .stapel{height:5px;margin:0 0 6px}
+  .k button{width:100%;border:1px solid var(--kant);background:#12281f;color:var(--grön);border-radius:5px;padding:3px 0;font:inherit;font-size:12px;cursor:pointer}
+  .k button:hover{background:#18352a} .k button:disabled{color:var(--dim);cursor:default}
+  .logg{display:flex;flex-direction:column;gap:5px}
+  .h{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;padding:5px 8px;border-left:3px solid var(--kant);background:var(--kort);border-radius:0 6px 6px 0}
+  .h.ny{animation:in .7s ease-out} @keyframes in{from{opacity:0;transform:translateX(-8px)}}
+  .h .typ{font-size:11px;color:var(--dim);white-space:nowrap} .h .text{word-break:break-word}
+  .h.inkasso{border-left-color:#ff9f43} .h.utmätning,.h.uppköp,.h.stadsövertagande{border-left-color:var(--röd)}
+  .h.lån-beviljat,.h.lån-erbjudande{border-left-color:var(--guld)} .h.välgörare,.h.kvitto{border-left-color:var(--grön)} .h.valutareform{border-left-color:var(--guld);background:#1f1a0c}
+  .tomt{color:var(--dim);padding:12px 0}
+  /* Säkerhetsavdelningen */
+  .säk{background:var(--kort);border:1px solid var(--kant);border-radius:8px;padding:9px 10px}
+  .säk .topp{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .nivå{font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:11px;padding:2px 8px;border-radius:3px;border:1px solid}
+  .nivå.grön{color:var(--grön)} .nivå.gul{color:#f4d35e} .nivå.orange{color:#ff9f43} .nivå.röd{color:var(--röd);animation:puls 1s infinite}
+  .säk .antal{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums} .säk .antal small{font-size:11px;font-weight:400;color:var(--dim)}
+  .säk .stat{margin-left:auto;color:var(--dim);font-size:12px}
+  .trupp{margin:8px 0 6px;font-size:15px;line-height:1.25;letter-spacing:1px;word-break:break-all}
+  .poster{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:3px 10px;font-size:11px;color:var(--dim)}
+  .poster b{color:var(--fg);font-weight:500}
+  .h.kupp-avvärjd{border-left-color:var(--grön);background:#0f2419} .h.bankrån{border-left-color:var(--röd);background:#2a0e0e} .h.beredskap{border-left-color:#ff9f43}
+  footer{padding:4px 14px 10px;color:var(--dim);font-size:11px}
+</style></head>
+<body>
+<header>
+  <div class="logo" role="img" aria-label="MyBank">
+    <svg viewBox="0 0 60 50" aria-hidden="true" fill="none" stroke="#e9c46a" stroke-width="1.6" stroke-linejoin="miter">
+      <path d="M4 17 L30 4 L56 17 Z"/>
+      <line x1="4" y1="20" x2="56" y2="20"/>
+      <line x1="11" y1="22" x2="11" y2="40"/><line x1="15" y1="22" x2="15" y2="40"/>
+      <line x1="23" y1="22" x2="23" y2="40"/><line x1="27" y1="22" x2="27" y2="40"/>
+      <line x1="33" y1="22" x2="33" y2="40"/><line x1="37" y1="22" x2="37" y2="40"/>
+      <line x1="45" y1="22" x2="45" y2="40"/><line x1="49" y1="22" x2="49" y2="40"/>
+      <line x1="6" y1="42" x2="54" y2="42"/>
+      <line x1="2" y1="46" x2="58" y2="46"/>
+      <circle cx="30" cy="12.5" r="2.2"/>
+    </svg>
+    <h1>MyBank</h1>
+    <div class="grundad">Bankaktiebolag · Grundat MMXXVI</div>
+  </div>
+  <div class="rad1"><span class="slogan">Din bank. Din stad. Snart vår.</span><span class="valuta" id="valuta"></span><span class="ränta" id="ränta"></span></div>
+  <div class="ägande">
+    <div class="etikett"><span>MyBanks andel av staden</span><b id="andel">0 %</b></div>
+    <div class="stapel"><i id="andelstapel" style="width:0"></i></div>
+  </div>
+  <div id="övertagen" hidden></div>
+</header>
+<main>
+  <section><h2>Säkerhetsavdelningen</h2>
+    <div class="säk">
+      <div class="topp"><span class="nivå grön" id="nivå">beredskap grön</span><span class="antal" id="vakter">– <small>vakter i tjänst</small></span><span class="stat" id="säkstat"></span></div>
+      <div class="trupp" id="trupp" aria-hidden="true"></div>
+      <div class="poster" id="poster"></div>
+    </div>
+  </section>
+  <section><h2>Kunder <span id="antal"></span></h2><div class="konton" id="konton"><div class="tomt">Banken räknar kvarteren…</div></div></section>
+  <section><h2>Senaste affärerna</h2><div class="logg" id="logg"></div></section>
+</main>
+<footer>Betala av ett kvarters skuld för att bromsa övertagandet. Stadens valuta är MyBanks. Alla belopp är påhittade.</footer>
+<script>
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const sett = new Set(); let först = true;
+const TYPNAMN = { 'konto-öppnat': 'nytt konto', 'lån-beviljat': 'lån', 'lån-nekat': 'nekat', 'lån-erbjudande': 'erbjudande', 'räntehöjning': 'ränta', 'påminnelse': 'påminnelse', 'inkasso': 'inkasso', 'utmätning': 'utmätning', 'uppköp': 'uppköp', 'stadsövertagande': 'ÖVERTAGANDE', 'valutareform': 'VALUTAREFORM', 'kupp-avvärjd': 'AVVÄRJD', 'bankrån': 'BANKRÅN', 'beredskap': 'beredskap', 'välgörare': 'välgörare', 'kvitto': 'kvitto' };
+const STEG = ['', '📨', '😠', '🕶️', '⚖️'];
+
+function rita(l) {
+  document.getElementById('valuta').textContent = l.valutareform ? `Valuta: ${l.valuta} (MB)` : `Valuta: ${l.valuta || 'MyBanks'} · reform på väg`;
+  document.getElementById('ränta').textContent = `styrränta ${l.styrränta} %/min`;
+  document.getElementById('andel').textContent = `${l.andel} % · ${l.ägda} kvarter uppköpta`;
+  document.getElementById('andelstapel').style.width = l.andel + '%';
+  document.getElementById('antal').textContent = l.konton.length ? `(${l.konton.length})` : '';
+  const öv = document.getElementById('övertagen');
+  öv.hidden = !l.övertagen;
+  if (l.övertagen) { öv.className = 'övertagen'; öv.textContent = `STADEN ÄR ÖVERTAGEN · ${l.övertagen.kvarter.join(', ')} tillhör MyBank`; }
+
+  const s = l.säkerhet;
+  if (s) {
+    const nv = document.getElementById('nivå'); nv.className = 'nivå ' + s.nivå; nv.textContent = 'beredskap ' + s.nivå;
+    document.getElementById('vakter').innerHTML = `${s.vakter} <small>vakter i tjänst</small>`;
+    document.getElementById('säkstat').textContent = `${s.avvärjda} kupper avvärjda · ${s.rån} rån`;
+    document.getElementById('trupp').textContent = '💂'.repeat(s.vakter);
+    // En rad per post med vakterna som står där just nu (posterna roterar varje takt).
+    const perPost = {}; for (const v of s.lista) (perPost[v.post] ||= []).push(v.namn.replace('Vakt ', ''));
+    document.getElementById('poster').innerHTML = Object.entries(perPost).map(([p, n]) => `<div><b>${esc(p)}</b> · ${esc(n.join(', '))}</div>`).join('');
+  }
+
+  const k = document.getElementById('konton');
+  if (l.konton.length) k.innerHTML = l.konton.map(x => `
+    <div class="k${x.ägd > 50 ? ' uppköpt' : ''}">
+      <div class="namn">${esc(x.namn)} <small>${STEG[Math.min(x.inkasso, 4)] || ''}${x.ägd > 50 ? ' uppköpt' : ''}</small></div>
+      <dl><dt>saldo</dt><dd>${x.saldo} MB</dd><dt>skuld</dt><dd class="${x.skuld ? 'skuld' : ''}">${x.skuld} MB</dd><dt>kredit</dt><dd>${x.kreditvärdighet}/100</dd><dt>ägd</dt><dd>${x.ägd} %</dd></dl>
+      <div class="stapel"><i style="width:${x.ägd}%"></i></div>
+      <button data-k="${esc(x.namn)}" ${x.skuld ? '' : 'disabled'}>${x.skuld ? 'Betala 200 MB åt dem' : 'skuldfri, än så länge'}</button>
+    </div>`).join('');
+
+  const logg = document.getElementById('logg');
+  logg.innerHTML = l.logg.length ? l.logg.slice(0, 15).map(h => {
+    const nyckel = h.ts + h.typ; const ny = !först && !sett.has(nyckel); sett.add(nyckel);
+    const tid = new Date(h.ts).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+    return `<div class="h ${esc(h.typ)}${ny ? ' ny' : ''}"><span class="typ">${tid} · ${esc(TYPNAMN[h.typ] || h.typ)}</span><span class="text">${esc(h.text)}</span></div>`;
+  }).join('') : '<div class="tomt">Inga affärer ännu. Det ändras snart.</div>';
+  först = false;
+}
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('button[data-k]'); if (!b) return;
+  b.disabled = true; b.textContent = 'betalar…';
+  const r = await fetch('/t/mybank/betala', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kvarter: b.dataset.k }) }).then(r => r.json()).catch(() => ({}));
+  b.textContent = r.error ? r.error : `betalt ${r.betalt} MyBanks`;
+  setTimeout(hämta, 600);
+});
+
+const hämta = () => fetch('/t/mybank/').then(r => r.json()).then(rita).catch(() => {});
+hämta(); setInterval(hämta, 4000);
+</script></body></html>

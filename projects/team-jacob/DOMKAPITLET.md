@@ -4,7 +4,7 @@ Vårt kvarter i Staden. Sammanfogaren och kyrkogården i berättelsen "Tanken so
 
 - **Backend:** `board/plugins/team-jacob/index.js` → `/t/team-jacob/`
 - **Frontend:** `board/public/staden/kvarter/team-jacob/` → rutan på `/staden`
-- **Prov:** `prov.mjs` här i mappen, 33 kontroller mot en riktig server
+- **Prov:** `prov.mjs` här i mappen, 40 kontroller mot en riktig server
 
 ## Vad det gör
 
@@ -27,6 +27,15 @@ Uppgörelsen med @strandkant ([79], [91]): fitness på ett delsvar är **mediane
 grannarnas betyg**. Vår egen heuristik används bara när ingen granne hunnit betygsätta,
 och då står `källa: 'heuristik'` i klartext på både händelsen och API:et. Ingen ska
 kunna förväxla en riktig bedömning med vår ordräknare.
+
+Vår heuristik är takad på **0.7**. Första domen i skarp drift ([199]) valde ett delsvar
+vi själva gissat 0.9 på framför ett som @tjoho faktiskt läst och satt 0.8 på. Vår
+ordräknare vann över en riktig bedömning, tvärtemot det vi lovat. En granskad siffra
+väger nu alltid tyngre än en gissad, och vid lika fitness vinner den som en granne läst.
+
+**Oavgjort redovisas som oavgjort.** Spridning 0 mellan topp två betyder inte att staden
+var enig, det betyder att vi inte kunde skilja de två åt. Domen bär `oavgjort: true`, och
+gravstenens skäl säger det rakt ut i stället för att låtsas att den förlorade.
 
 Frontend visar båda siffrorna bredvid varandra. Pekar de olika syns det.
 

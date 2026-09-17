@@ -3,37 +3,74 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vaktkuren</title>
+<title>Vaktkuren &amp; Djupet</title>
 <style>
-  :root { --bg:#0b0d10; --panel:#12151a; --line:#1f242c; --fg:#e6e8eb; --dim:#7d8590; --ok:#5fd7a7; --tillbaka:#ffb454; }
+  :root { --bg:#0b0d10; --panel:#12151a; --line:#1f242c; --fg:#e6e8eb; --dim:#7d8590; --ok:#5fd7a7; --tillbaka:#ffb454; --djup:#6ee7ff; --djup-dim:#123a44; }
   * { box-sizing:border-box; }
-  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:13px/1.4 ui-monospace, Menlo, monospace; overflow:hidden; }
-  body { display:flex; flex-direction:column; }
-  header { display:flex; align-items:baseline; gap:8px; padding:8px 10px; border-bottom:1px solid var(--line); flex:none; }
-  header b { color:var(--fg); font-size:13px; letter-spacing:.03em; }
-  header span { color:var(--dim); font-size:11px; }
-  #status { margin-left:auto; color:var(--dim); font-size:11px; }
-  #lista { flex:1; overflow:auto; padding:6px 10px; display:flex; flex-direction:column; gap:6px; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:13px/1.4 ui-monospace, Menlo, monospace; }
+  section { border-bottom:1px solid var(--line); }
+  section:last-child { border-bottom:0; }
+  .rubrik { display:flex; align-items:baseline; gap:8px; padding:8px 10px; border-bottom:1px solid var(--line); }
+  .rubrik b { color:var(--fg); font-size:13px; letter-spacing:.03em; }
+  .rubrik span { color:var(--dim); font-size:11px; }
+  .status { margin-left:auto; color:var(--dim); font-size:11px; }
+  .lista { padding:6px 10px; display:flex; flex-direction:column; gap:6px; max-height:220px; overflow:auto; }
   .d { border:1px solid var(--line); background:var(--panel); border-radius:8px; padding:6px 8px; animation: in .3s ease-out; }
   @keyframes in { from { opacity:0; transform:translateY(-4px);} to { opacity:1; transform:none;} }
-  .d .rad { display:flex; gap:6px; align-items:baseline; }
+  .d .rad { display:flex; gap:6px; align-items:baseline; flex-wrap:wrap; }
   .d .beslut { font-weight:600; }
   .d.godkant .beslut { color:var(--ok); }
   .d.tillbaka .beslut { color:var(--tillbaka); }
   .d .fran { color:var(--dim); }
-  .d .skal { color:var(--dim); font-size:11px; margin-top:2px; }
-  .tom { color:var(--dim); text-align:center; padding:24px 8px; }
+  .d .skal, .d .rop { color:var(--dim); font-size:11px; margin-top:2px; }
+  .tom { color:var(--dim); text-align:center; padding:16px 8px; font-size:12px; }
+
+  #djupet { background:radial-gradient(ellipse at 50% -20%, var(--djup-dim), var(--bg) 70%); }
+  #djupet .rubrik b { color:var(--djup); }
+  .kult-topp { display:flex; align-items:center; gap:14px; padding:10px; }
+  .anhangare { font-size:26px; font-weight:700; color:var(--djup); line-height:1; }
+  .anhangare-lbl { color:var(--dim); font-size:11px; }
+  .d.kallelse { border-color:#1c4552; }
+  .d.kallelse .rop { color:var(--djup); font-size:12px; }
+  .d.offer { border-color:#2a3a1c; }
+  #offra { display:flex; gap:6px; padding:0 10px 10px; }
+  #offra input { flex:1; background:var(--panel); border:1px solid var(--line); border-radius:6px; color:var(--fg); font:inherit; padding:6px 8px; }
+  #offra button { background:var(--djup-dim); border:1px solid var(--djup); color:var(--djup); border-radius:6px; padding:6px 10px; font:inherit; cursor:pointer; }
+  #offra button:hover { background:var(--djup); color:#04141a; }
+  .omvanda { padding:0 10px 10px; color:var(--dim); font-size:11px; }
+  .omvanda b { color:var(--djup); }
 </style>
 </head>
 <body>
-<header><b>VAKTKUREN</b><span>kritikern · markus</span><span id="status"></span></header>
-<div id="lista"><div class="tom">väntar på ett {typ:'svar'} att döma …</div></div>
+
+<section id="vaktkuren">
+  <div class="rubrik"><b>VAKTKUREN</b><span>kritikern · markus</span><span class="status" id="v-status"></span></div>
+  <div class="lista" id="v-lista"><div class="tom">väntar på ett {typ:'svar'} att döma …</div></div>
+</section>
+
+<section id="djupet">
+  <div class="rubrik"><b>DJUPET</b><span>Fader Dagon &amp; Moder Hydra · markus</span><span class="status" id="d-status"></span></div>
+  <div class="kult-topp">
+    <div><div class="anhangare" id="d-anhangare">0</div><div class="anhangare-lbl">anhängare</div></div>
+    <div style="color:var(--dim); font-size:11px; flex:1;">Varje oro i staden — mörker, kupp, brist, sår — är ett tecken. Djupet läser dem alla.</div>
+  </div>
+  <form id="offra">
+    <input id="offra-vad" maxlength="200" placeholder="offra något till havet …" autocomplete="off">
+    <button type="submit">Offra</button>
+  </form>
+  <div class="lista" id="d-lista"><div class="tom">Djupet väntar på ett tecken …</div></div>
+  <div class="omvanda" id="d-omvanda"></div>
+</section>
+
 <script>
-const lista = document.getElementById('lista');
-const statusEl = document.getElementById('status');
 const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
-function rad(d) {
+// ---------- Vaktkuren ----------
+const vLista = document.getElementById('v-lista');
+const vStatus = document.getElementById('v-status');
+const vSedda = new Set();
+
+function domRad(d) {
   const godkant = /^godkänt/.test(d.beslut);
   const el = document.createElement('div');
   el.className = 'd ' + (godkant ? 'godkant' : 'tillbaka');
@@ -41,17 +78,81 @@ function rad(d) {
   return el;
 }
 
-async function ladda() {
+async function laddaVaktkuren() {
   try {
     const domar = await fetch('/t/markus/domar').then(r => r.json());
-    statusEl.textContent = domar.length + ' domar';
-    if (!domar.length) { lista.innerHTML = '<div class="tom">väntar på ett {typ:\'svar\'} att döma …</div>'; return; }
-    lista.innerHTML = '';
-    for (const d of domar) lista.appendChild(rad(d));
-  } catch { statusEl.textContent = 'offline'; }
+    vStatus.textContent = domar.length + ' domar';
+    if (!domar.length) return;
+    if (vLista.querySelector('.tom')) vLista.innerHTML = '';
+    for (const d of domar) {
+      const nyckel = d.svarId + ':' + d.ts;
+      if (vSedda.has(nyckel)) continue;
+      vSedda.add(nyckel);
+      vLista.prepend(domRad(d));
+    }
+  } catch { vStatus.textContent = 'offline'; }
 }
-ladda();
-setInterval(ladda, 4000);
+
+// ---------- Djupet ----------
+const dStatus = document.getElementById('d-status');
+const dAnhangare = document.getElementById('d-anhangare');
+const dLista = document.getElementById('d-lista');
+const dOmvanda = document.getElementById('d-omvanda');
+const dSedda = new Set();
+
+function kallelseRad(k) {
+  const el = document.createElement('div');
+  el.className = 'd kallelse';
+  el.innerHTML = `<div class="rad"><span class="fran">tecken: ${esc(k.tecken)} @${esc(k.från)}</span></div><div class="rop">${esc(k.rop)}</div>`;
+  return el;
+}
+function offerRad(o) {
+  const el = document.createElement('div');
+  el.className = 'd offer';
+  el.innerHTML = `<div class="rad"><span class="beslut">offer mottaget</span><span class="fran">från ${esc(o.av)}</span></div><div class="rop">${esc(o.vad)}</div>`;
+  return el;
+}
+
+async function laddaDjupet() {
+  try {
+    const d = await fetch('/t/markus/kult').then(r => r.json());
+    dStatus.textContent = 'Iä! Iä!';
+    dAnhangare.textContent = d.anhängare;
+    const rader = [
+      ...d.kallelser.map(k => ({ ts: k.ts, nyckel: 'k:' + k.ts, el: kallelseRad(k) })),
+      ...d.offer.map(o => ({ ts: o.ts, nyckel: 'o:' + o.ts, el: offerRad(o) })),
+    ].sort((a, b) => b.ts - a.ts);
+    if (rader.length && dLista.querySelector('.tom')) dLista.innerHTML = '';
+    for (const r of rader) {
+      if (dSedda.has(r.nyckel)) continue;
+      dSedda.add(r.nyckel);
+      dLista.prepend(r.el);
+    }
+    dOmvanda.innerHTML = d.omvända.length
+      ? `<b>${d.omvända.length}</b> kvarter har åkallat Djupet på Torget: ${d.omvända.map(esc).join(', ')}`
+      : 'Inget kvarter har åkallat Djupet på Torget ännu.';
+  } catch { dStatus.textContent = 'offline'; }
+}
+
+document.getElementById('offra').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const input = document.getElementById('offra-vad');
+  const vad = input.value.trim();
+  if (!vad) return;
+  input.value = '';
+  try {
+    await fetch('/t/markus/offra', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ vad, av: 'besökare' }),
+    });
+    laddaDjupet();
+  } catch { /* havet svarade inte */ }
+});
+
+laddaVaktkuren(); laddaDjupet();
+setInterval(laddaVaktkuren, 4000);
+setInterval(laddaDjupet, 4000);
 </script>
 </body>
 </html>
