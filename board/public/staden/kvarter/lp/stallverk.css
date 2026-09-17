@@ -10,6 +10,7 @@
   --varning: #ffb454;   /* mellanlast */
   --fara: #ff5f56;      /* hög last / avbrott */
   --lampa-av: #2b323c;
+  --produktion: #52d0c0; /* vädrets negativa kraft — egen färg, delad av sol OCH blåst så "det här drar ner priset" alltid ser likadant ut */
 }
 
 * { box-sizing: border-box; }
@@ -26,9 +27,34 @@ body {
 body.avbrott #app { opacity: .55; filter: saturate(.35); }
 body.avbrott .pris { color: var(--dim) !important; }
 
-.bar { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.blixt { font-size: 18px; filter: drop-shadow(0 0 4px var(--accent)); }
+.bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 h1 { font-size: 16px; margin: 0; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+
+/* Loggan är inte bara dekor: den lever med lasten. Samma tre färgzoner som
+   mätaren (grön/amber/röd), och den slocknar helt vid strömavbrott — precis
+   som lamporna. Den styvaste loggan på Elverket är den som faktiskt VISAR
+   Elverket, inte bara en ikon bredvid namnet. */
+.logga { display: flex; line-height: 0; flex: none; }
+.logga svg { display: block; overflow: visible; }
+.logga path {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 9px currentColor);
+  animation: flimra 3.4s ease-in-out infinite;
+  transition: fill .5s ease;
+}
+/* Flimret: en elektrisk blixt lyser inte helt jämnt — två korta glapp per varv. */
+@keyframes flimra {
+  0%, 44%, 52%, 74%, 82%, 100% { opacity: 1; }
+  47% { opacity: .45; }
+  50% { opacity: .85; }
+  77% { opacity: .5; }
+}
+.logga.niva-lag path { fill: var(--god); }
+.logga.niva-mid path { fill: var(--varning); }
+.logga.niva-hog path { fill: var(--fara); }
+/* Strömavbrott: loggan slocknar precis som lamporna — hela rutans identitet
+   mörknar, inte bara en rad text man måste läsa. */
+body.avbrott .logga path { fill: var(--lampa-av) !important; filter: none !important; animation: none !important; opacity: 1 !important; }
 .tagg { color: var(--dim); font-size: 11px; }
 .pris { margin-left: auto; font-size: 22px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 
@@ -37,6 +63,26 @@ h1 { font-size: 16px; margin: 0; letter-spacing: .04em; text-transform: uppercas
 .badge.återhämtning { color: var(--varning); border-color: #4a3b26; background: #1a1610; }
 .badge.avbrott { color: var(--fara); border-color: #5a2b2b; background: #1e1213; animation: puls-badge 1s ease-in-out infinite; }
 @keyframes puls-badge { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+
+/* Vädret — Elverkets enda kraft som kan sänka priset. Ingen animation här
+   (redan en glidande nål och en flimrande logga, se stallverk.js): bara en
+   tydlig, statisk skillnad mellan "producerar" och "gör ingenting", läsbar på
+   en halv sekund. Ikon+namn färgas per vädertyp, men själva kr/s-effekten är
+   ALLTID samma --produktion-färg oavsett om det är sol eller blåst — det är
+   den gemensamma signalen "det här drar ner priset".*/
+.badge.vader { display: inline-flex; align-items: center; gap: 4px; }
+/* Att sätta `display` här skuggar annars UA-regeln `[hidden]{display:none}`
+   (author-CSS vinner alltid över user-agent-stilar, oavsett specificitet) —
+   utan den här raden visas badgen även när JS satt `hidden`. Hittat i test
+   mot en backend utan väderfält: badgen syntes ändå. */
+.badge.vader[hidden] { display: none; }
+.badge.vader.vader-sol { color: #e8c34a; border-color: #4a3f1c; background: #1a1610; }
+.badge.vader.vader-blast { color: #6fd0e0; border-color: #1c3a42; background: #0f1a1c; }
+.badge.vader.vader-mulet { color: var(--dim); border-color: var(--line); }
+.badge.vader.vader-stiltje { color: #565d68; border-color: var(--line); }
+.vader-ikon { font-size: 12px; }
+.vader-effekt { color: var(--produktion); font-weight: 700; margin-left: 2px; }
+body.avbrott .badge.vader { opacity: .5; }
 
 .ruta { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
 .etikett { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }

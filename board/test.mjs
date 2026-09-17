@@ -88,6 +88,14 @@ try {
   r = await fetch(B + '/api/tidningen', { method: 'POST', headers: { authorization: 'Bearer hemlig' }, body: JSON.stringify({ huvud: { rubrik: 'Kupp på Genomfarten', ingress: 'Bagarn flyr', text: 'Det hände i natt.', källor: [3, 'x'] }, notiser: ['en notis'], dödsannonser: [{ namn: 'Ett delsvar', text: 'Föll på fitness 0.4' }] }) });
   assert.equal(r.status, 201); const ut = await (await fetch(B + '/api/tidningen')).json(); assert.equal(ut.senaste.nummer, 1); assert.deepEqual(ut.senaste.huvud.källor, [3]); assert.equal(ut.arkiv.length, 1); ok('tidningen: publicera och läsa');
   assert.equal((await fetch(B + '/tidningen')).status, 200); ok('tidningen: sidan');
+  // 7a2e. radion
+  r = await fetch(B + '/api/radio/halsning', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ namn: 'Åsa', text: 'Hälsa alla på Elverket', sort: 'önskning' }) }); assert.equal(r.status, 201); const hä = await r.json(); ok('radio: vem som helst kan hälsa');
+  r = await fetch(B + '/api/radio/halsning', { method: 'POST', body: JSON.stringify({ text: 'x' }) }); assert.equal(r.status, 400); ok('radio: för kort hälsning avvisas');
+  r = await fetch(B + '/api/ljud/prat-1.mp3', { method: 'POST', body: 'x' }); assert.equal(r.status, 403); ok('radio: uppladdning kräver token');
+  r = await fetch(B + '/api/ljud/prat-1.mp3', { method: 'POST', headers: { authorization: 'Bearer hemlig' }, body: Buffer.from('0123456789') }); assert.equal(r.status, 201);
+  r = await fetch(B + '/ljud/prat-1.mp3', { headers: { range: 'bytes=2-5' } }); assert.equal(r.status, 206); assert.equal(await r.text(), '2345'); ok('radio: ljud med range');
+  r = await fetch(B + '/api/radio', { method: 'POST', headers: { authorization: 'Bearer hemlig' }, body: JSON.stringify({ segment: { typ: 'prat', titel: 'Morgon', text: 'God morgon staden', fil: 'prat-1.mp3', sek: 30 }, lästa: [hä.id], musik: [{ fil: 'bulletin-bed.mp3', titel: 'Bulletin Bed', sort: 'bädd', sek: 40 }] }) }); assert.equal(r.status, 200);
+  const ra = await (await fetch(B + '/api/radio')).json(); assert.equal(ra.segment[0].titel, 'Morgon'); assert.equal(ra.hälsningar[0].läst, true); assert.equal(ra.musik[0].sort, 'bädd'); ok('radio: segment, musik och upplästa hälsningar');
   // 7a3. läget
   r = await fetch(B + '/api/laget', { method: 'POST', body: '{}' }); assert.equal(r.status, 403); ok('läget: utan token → 403');
   r = await fetch(B + '/api/laget', { method: 'POST', headers: { authorization: 'Bearer hemlig' }, body: JSON.stringify({ rubrik: 'Staden vaknar', nu: ['a', 'b'], behövs: [{ vad: 'Välj namn', vem: 'ann', id: 1 }], till_id: 5 }) });

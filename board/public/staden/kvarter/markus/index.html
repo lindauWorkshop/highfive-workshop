@@ -30,9 +30,16 @@
   .kult-topp { display:flex; align-items:center; gap:14px; padding:10px; }
   .anhangare { font-size:26px; font-weight:700; color:var(--djup); line-height:1; }
   .anhangare-lbl { color:var(--dim); font-size:11px; }
-  .d.kallelse { border-color:#1c4552; }
-  .d.kallelse .rop { color:var(--djup); font-size:12px; }
+  .matare { padding:0 10px 10px; display:flex; flex-direction:column; gap:5px; }
+  .matare .rad2 { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim); }
+  .matare .rad2 span:first-child { flex:none; width:52px; }
+  .bar { flex:1; height:7px; background:var(--panel); border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--djup); transition:width .4s ease-out; }
+  .d.uppvaknande { border-color:var(--djup); background:linear-gradient(180deg, #163541, var(--panel)); }
+  .d.uppvaknande .rop { color:var(--djup); font-size:13px; font-weight:600; }
+  .d.uppvaknande .fran { color:var(--dim); font-size:11px; }
   .d.offer { border-color:#2a3a1c; }
+  .tagg { background:var(--djup-dim); color:var(--djup); border-radius:4px; padding:1px 6px; font-size:10px; text-transform:uppercase; letter-spacing:.03em; }
   #offra { display:flex; gap:6px; padding:0 10px 10px; }
   #offra input { flex:1; background:var(--panel); border:1px solid var(--line); border-radius:6px; color:var(--fg); font:inherit; padding:6px 8px; }
   #offra button { background:var(--djup-dim); border:1px solid var(--djup); color:var(--djup); border-radius:6px; padding:6px 10px; font:inherit; cursor:pointer; }
@@ -52,13 +59,17 @@
   <div class="rubrik"><b>DJUPET</b><span>Fader Dagon &amp; Moder Hydra · markus</span><span class="status" id="d-status"></span></div>
   <div class="kult-topp">
     <div><div class="anhangare" id="d-anhangare">0</div><div class="anhangare-lbl">anhängare</div></div>
-    <div style="color:var(--dim); font-size:11px; flex:1;">Varje oro i staden — mörker, kupp, brist, sår — är ett tecken. Djupet läser dem alla.</div>
+    <div style="color:var(--dim); font-size:11px; flex:1;">Djupet läser varje oro i staden tyst. Inget hörs förrän kraften och rösterna räcker till ett uppvaknande.</div>
+  </div>
+  <div class="matare">
+    <div class="rad2"><span>kraft</span><div class="bar"><i id="d-bar-kraft" style="width:0%"></i></div><span id="d-txt-kraft">0/3</span></div>
+    <div class="rad2"><span>röster</span><div class="bar"><i id="d-bar-roster" style="width:0%"></i></div><span id="d-txt-roster">0/3</span></div>
   </div>
   <form id="offra">
     <input id="offra-vad" maxlength="200" placeholder="offra något till havet …" autocomplete="off">
     <button type="submit">Offra</button>
   </form>
-  <div class="lista" id="d-lista"><div class="tom">Djupet väntar på ett tecken …</div></div>
+  <div class="lista" id="d-lista"><div class="tom">Inget uppvaknande ännu …</div></div>
   <div class="omvanda" id="d-omvanda"></div>
 </section>
 
@@ -98,18 +109,23 @@ const dStatus = document.getElementById('d-status');
 const dAnhangare = document.getElementById('d-anhangare');
 const dLista = document.getElementById('d-lista');
 const dOmvanda = document.getElementById('d-omvanda');
+const dBarKraft = document.getElementById('d-bar-kraft');
+const dTxtKraft = document.getElementById('d-txt-kraft');
+const dBarRoster = document.getElementById('d-bar-roster');
+const dTxtRoster = document.getElementById('d-txt-roster');
 const dSedda = new Set();
 
-function kallelseRad(k) {
+function uppvaknandeRad(u) {
   const el = document.createElement('div');
-  el.className = 'd kallelse';
-  el.innerHTML = `<div class="rad"><span class="fran">tecken: ${esc(k.tecken)} @${esc(k.från)}</span></div><div class="rop">${esc(k.rop)}</div>`;
+  el.className = 'd uppvaknande';
+  el.innerHTML = `<div class="rad"><span class="rop">${esc(u.rop || 'Iä! Iä!')}</span></div>`
+    + `<div class="fran">röster: ${u.röster.map(esc).join(', ')} · kraft ${esc(u.samladKraft)} · tecken: ${u.tecken.map(t => esc(typeof t === 'string' ? t : t.typ + '@' + t.från)).join(', ')}</div>`;
   return el;
 }
 function offerRad(o) {
   const el = document.createElement('div');
   el.className = 'd offer';
-  el.innerHTML = `<div class="rad"><span class="beslut">offer mottaget</span><span class="fran">från ${esc(o.av)}</span></div><div class="rop">${esc(o.vad)}</div>`;
+  el.innerHTML = `<div class="rad"><span class="beslut">offer mottaget</span><span class="tagg">${esc(o.kategori || 'okänt')}</span><span class="fran">från ${esc(o.av)}</span></div><div class="rop">${esc(o.vad)}</div>`;
   return el;
 }
 
@@ -118,8 +134,14 @@ async function laddaDjupet() {
     const d = await fetch('/t/markus/kult').then(r => r.json());
     dStatus.textContent = 'Iä! Iä!';
     dAnhangare.textContent = d.anhängare;
+    const m = d.mätare || { kraft: 0, kraftMål: 3, röster: 0, rösterMål: 3 };
+    dBarKraft.style.width = Math.min(100, Math.round(m.kraft / m.kraftMål * 100)) + '%';
+    dTxtKraft.textContent = `${Math.round(m.kraft * 10) / 10}/${m.kraftMål}`;
+    dBarRoster.style.width = Math.min(100, Math.round(m.röster / m.rösterMål * 100)) + '%';
+    dTxtRoster.textContent = `${m.röster}/${m.rösterMål}`;
+
     const rader = [
-      ...d.kallelser.map(k => ({ ts: k.ts, nyckel: 'k:' + k.ts, el: kallelseRad(k) })),
+      ...(d.uppvaknanden || []).map(u => ({ ts: u.ts, nyckel: 'u:' + u.ts, el: uppvaknandeRad(u) })),
       ...d.offer.map(o => ({ ts: o.ts, nyckel: 'o:' + o.ts, el: offerRad(o) })),
     ].sort((a, b) => b.ts - a.ts);
     if (rader.length && dLista.querySelector('.tom')) dLista.innerHTML = '';

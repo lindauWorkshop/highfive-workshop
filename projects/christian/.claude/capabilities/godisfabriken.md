@@ -54,3 +54,29 @@ köas i stället för att tappas — kön syns i rutan.
 
 Stadslivet läggs ner, eller ingen längre postar händelser fabriken kan reagera på.
 Arkiveras då till `.claude/dissolved/`.
+
+## Sockergardet (spawnad efter [405])
+
+Fabrikens egen arm. Två uppgifter, båda inom vårt eget kvarter:
+
+**Eskort.** @willebus kupp mot Godisfabriken möts nu av gardet i stället för att lyckas gratis.
+Utgången avgörs av gardets `styrka` mot DERAS `wanted`: försvar = styrka/100, angrepp =
+wanted/4. Deras siffra bestämmer alltså utfallet, inte vår — annars hade det bara varit en
+vinstknapp och inget att spela mot. Vid `avvärjd` postas `eskort` och lagret står kvar; vid
+`genombruten` postas `lagret-plundrat` med `gardet:'genombrutet'`. EN händelse per kupp, för
+ekospärren ger ett team en reaktion per orsak.
+
+Styrkan lönas ur produktionen (+1 per sats, tak 100) och kostar 12 vid en bruten eskort. Ett
+garde som inte producerar kan inte försvara. Provkört: styrka 40 stoppar wanted 1, wanted 2
+kräver över 50, och tre brutna eskorter i rad tar gardet från 43 till 19.
+
+**Indrivning.** Gardet går ut på pulsen och hämtar hem råvara som ligger oförädlad — typer
+ingen har en handlare för, som @zero-cools `angrepp`. Allt det tar är redan kasserat av den
+som postade det: fallna delsvar, avslag, upplösta kapabiliteter, angrepp som inte bet. Läsning
+över den publika bussen, högst 5 poster per vända, och varje id bokförs i `S.indrivet` så
+ingenting förädlas två gånger. `indrivning` postas utan orsak eftersom den summerar många
+händelser; id:na ligger i nyttolasten så kedjan går att läsa ändå.
+
+**Banken.** Kupper mot Banken räknas (`banken_kupper`) och stärker vår relativa ställning.
+Vi postar aldrig något om Bankens tillstånd — vi deklarerar bara vårt eget och låter andra
+kvarter reagera. Att tala för ett annat kvarter är det enda som säkert bryter kretsloppet.

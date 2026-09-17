@@ -1,0 +1,98 @@
+:root { --bg:#0b0d10; --panel:#12151a; --line:#1f242c; --fg:#e6e8eb; --dim:#7d8590; --ljus:#ffb454; --gul:#ffe08a; --grön:#5fd7a7; --röd:#ff7b54; --järn:#3a414b; }
+* { box-sizing:border-box; }
+html, body { margin:0; }
+body { background:linear-gradient(#07080b 0%, #0d1016 70%, #151208 100%); color:var(--fg); font:13px/1.4 ui-monospace, Menlo, monospace; }
+header { display:flex; align-items:baseline; gap:8px; padding:10px 12px 2px; }
+h1 { margin:0; font-size:14px; letter-spacing:.1em; text-transform:uppercase; color:var(--ljus); }
+.sub { color:var(--dim); font-size:11px; }
+.nyckel { list-style:none; display:flex; flex-wrap:wrap; gap:4px 12px; margin:0; padding:2px 12px; color:var(--dim); font-size:10px; }
+.nyckel i { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:-1px; }
+.nyckel .tänker { background:var(--ljus); } .nyckel .svarat { background:var(--gul); } .nyckel .godkänt { background:var(--grön); } .nyckel .tillbaka { background:var(--röd); opacity:.6; }
+#msg { min-height:14px; padding:0 12px; color:var(--dim); font-size:11px; }
+#msg.fel { color:#ff7b72; }
+
+/* gatan */
+#gata { display:flex; align-items:flex-end; gap:2px; overflow-x:auto; padding:0 12px; min-height:320px; border-bottom:1px solid #2a2416; scrollbar-width:thin; }
+.tom { color:var(--dim); margin:auto; padding:40px 0; text-align:center; }
+.stolpe { flex:none; width:104px; display:flex; flex-direction:column; align-items:center; background:none; border:0; border-radius:10px 10px 0 0; color:inherit; font:inherit; padding:0 4px 8px; cursor:pointer; animation:tänds .8s ease-out; }
+.stolpe:hover { background:rgba(255,180,84,.04); }
+.stolpe.vald { background:rgba(255,180,84,.08); }
+.stolpe svg { display:block; overflow:visible; }
+@keyframes tänds { from { opacity:0; filter:brightness(.2); } to { opacity:1; filter:none; } }
+.stolpe .text { font-size:10px; line-height:1.3; height:40px; overflow:hidden; text-align:center; color:var(--fg); }
+.stolpe .meta { font-size:9px; color:var(--dim); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.stolpe.omtänkt .text { color:var(--gul); }
+
+.pelare { stroke:var(--järn); stroke-width:3; }
+.fot { fill:var(--järn); }
+.arm { fill:#2a3038; stroke:var(--järn); stroke-width:1; }
+.bur { fill:rgba(20,22,26,.55); stroke:#5b6470; stroke-width:1.1; stroke-linejoin:round; }
+.nr { fill:var(--dim); font-size:9px; }
+.sten { fill:#2b3139; stroke:#48505b; stroke-width:.8; }
+.vinge { fill:#d9cfb8; opacity:.85; }
+
+.lykta.tänker .låga { fill:var(--ljus); animation:flämt 1.1s ease-in-out infinite; }
+.lykta.tänker .sken { animation:andas 2.2s ease-in-out infinite; }
+.lykta.svarat .låga { fill:var(--gul); }
+.lykta.godkänt .låga { fill:var(--grön); }
+.lykta.tillbaka .låga { fill:var(--röd); opacity:.55; }
+.lykta.tillbaka .vinge { opacity:.35; }
+@keyframes flämt { 0%,100% { opacity:.55; } 45% { opacity:1; } 70% { opacity:.8; } }
+@keyframes andas { 0%,100% { opacity:.6; } 50% { opacity:1; } }
+
+/* Vattenlandet under gatan */
+#underjord { border-top:1px solid #2a2416; }
+#vattensvg { display:block; width:100%; height:auto; max-height:260px; }
+.jord { fill:#14110d; }
+.galler rect { fill:#1d1a15; } .galler path { stroke:#3a3328; stroke-width:2; }
+.kant { fill:#1a1e22; stroke:#2e353d; stroke-width:1.5; }
+.tomt { fill:#0e1418; }
+#vatten { transition:transform 1.8s ease-in-out; }
+.våg { fill:url(#vattnet); opacity:.92; }
+.överlinje { stroke:#ff7b54; stroke-width:1; stroke-dasharray:4 4; opacity:.5; }
+.badare { animation:guppa 2s ease-in-out infinite; }
+.badare circle { fill:#ffd9b0; } .badare path { stroke:#ff6f91; stroke-width:2.5; stroke-linecap:round; }
+@keyframes guppa { 0%,100% { transform:translateY(0); } 50% { transform:translateY(2px); } }
+.kana { fill:none; stroke:#ff6f91; stroke-width:5; stroke-linecap:round; opacity:.85; }
+#rutschbil { opacity:0; }
+#rutschbil rect { fill:#ffe08a; }
+#rutschbil.åker { opacity:1; }
+.pump rect { fill:#232a31; stroke:#48505b; }
+.rotor { animation:snurra 1.2s linear infinite; transform-box:fill-box; transform-origin:center; }
+.rotor path { stroke:#5fd7a7; stroke-width:2.5; stroke-linecap:round; }
+@keyframes snurra { to { transform:rotate(360deg); } }
+.rör { stroke:#48505b; stroke-width:4; }
+.utan-ström .rotor path { stroke:#ff7b54; }
+.utan-ström .rotor { animation-play-state:paused; }
+.lock { fill:#3a414b; transition:transform .8s; transform-box:fill-box; transform-origin:left center; }
+.lucka .lock { transform:rotate(70deg); }
+.virvel { fill:none; stroke:#3fb8c9; stroke-width:1.5; opacity:0; transition:opacity .8s; }
+.lucka .virvel { opacity:.7; }
+.djuptext { fill:#2d4a63; font-size:9px; letter-spacing:.2em; text-transform:uppercase; }
+.nivå { fill:#e6e8eb; font-size:11px; font-weight:600; }
+.skylt { fill:#ff7b54; font-size:16px; font-weight:700; letter-spacing:.2em; opacity:0; }
+.stängt .skylt { opacity:1; animation:flämt 1.4s ease-in-out infinite; }
+.vrad { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; padding:4px 12px 0; font-size:11px; color:var(--dim); }
+.vrad h2 { margin:0; font-size:13px; letter-spacing:.1em; text-transform:uppercase; color:#3fb8c9; }
+.vrad b { color:var(--fg); font-weight:600; } .vrad .röd { color:#ff7b54; } .vrad .djup { color:#3fb8c9; }
+#vlogg { list-style:none; margin:4px 0 0; padding:0 12px 6px; font-size:11px; color:var(--dim); max-height:92px; overflow:hidden; }
+#vlogg time { color:#48505b; } #vlogg small { color:#48505b; }
+
+/* hela kedjan i text under gatan */
+#detalj { padding:8px 12px 16px; }
+#detalj:empty { display:none; }
+#detalj h2 { margin:0 0 6px; font-size:13px; }
+#detalj h2 small { color:var(--dim); font-weight:400; }
+.varv { border-left:2px solid var(--line); padding:2px 0 4px 10px; margin-top:6px; }
+.varv.tänker { border-color:var(--ljus); } .varv.svarat { border-color:var(--gul); } .varv.godkänt { border-color:var(--grön); } .varv.tillbaka { border-color:var(--röd); }
+.varv h3 { margin:0; font-size:11px; color:var(--dim); font-weight:600; }
+.varv h3 span { font-weight:400; }
+.varv ul { margin:3px 0; padding:0; list-style:none; font-size:11px; }
+.varv li b { color:var(--dim); font-weight:600; margin-right:4px; }
+.varv .svar { margin:3px 0; }
+.varv .svar em { color:var(--ljus); font-style:normal; }
+.varv .svar small, .varv .stenar { color:var(--dim); font-size:11px; }
+.varv .stenar { margin:2px 0; }
+.väntar { color:var(--dim); font-style:italic; }
+
+@media (prefers-reduced-motion: reduce) { .lykta .låga, .lykta .sken, .stolpe, .badare, .rotor, .stängt .skylt { animation:none !important; } #vatten { transition:none; } }

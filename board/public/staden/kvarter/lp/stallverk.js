@@ -35,9 +35,29 @@
       }))
       .filter(p => p.kvarter != null && p.kr != null);
 
+    // postad/varförInte kan saknas helt (äldre backend) — då vet vi INTE om
+    // avbrottet hördes av staden, och ska inte påstå något (postad: null,
+    // varken sant eller falskt). Bara en explicit `false` ritar den diskreta
+    // "ej hört av staden"-markören; ett okänt läge visar ingenting extra.
     const senasteAvbrott = (t.senasteAvbrott && typeof t.senasteAvbrott === 'object')
-      ? { ts: num(t.senasteAvbrott.ts, null), varaktighetS: num(t.senasteAvbrott.varaktighetS, null), orsak: t.senasteAvbrott.orsak ?? null }
+      ? {
+          ts: num(t.senasteAvbrott.ts, null),
+          varaktighetS: num(t.senasteAvbrott.varaktighetS, null),
+          orsak: t.senasteAvbrott.orsak ?? null,
+          postad: typeof t.senasteAvbrott.postad === 'boolean' ? t.senasteAvbrott.postad : null,
+          varförInte: typeof t.senasteAvbrott.varförInte === 'string' ? t.senasteAvbrott.varförInte : null,
+        }
       : null;
+
+    // väder kan saknas helt (äldre backend som inte deployat fältet än) —
+    // typ:null betyder "ingen väderdata", och rutan ska då se ut precis som
+    // innan vädret fanns, inte trasig. Bara kända typer räknas som riktigt
+    // väder; allt annat (påhittat/felstavat) blir också "ingen väderdata".
+    const KÄNDA_VÄDERTYPER = ['sol', 'blåst', 'mulet', 'stiltje'];
+    const våder = t.väder && typeof t.väder === 'object' ? t.väder : null;
+    const väder = (våder && KÄNDA_VÄDERTYPER.includes(våder.typ))
+      ? { typ: våder.typ, effektKrPerS: num(våder.effektKrPerS, 0), sedanS: num(våder.sedanS, null), nästaBytesOmS: num(våder.nästaBytesOmS, null) }
+      : { typ: null, effektKrPerS: 0, sedanS: null, nästaBytesOmS: null };
 
     return {
       ts: num(t.ts, Date.now()),
@@ -55,6 +75,7 @@
       tau: (t.tau && typeof t.tau === 'object') ? { normalS: num(t.tau.normalS, 45), avbrottS: num(t.tau.avbrottS, 8) } : { normalS: 45, avbrottS: 8 },
       // valfritt fält, kan saknas eller döpas om — läs defensivt, gissa aldrig
       sedanOmstartS: num(t.sedanOmstartS, null),
+      väder,
     };
   }
 
@@ -77,7 +98,28 @@
     lampoTom: $('lampor-tom'),
     lista: $('lista'),
     status: $('status'),
+    logga: $('logga'),
+    badgeVader: $('badge-vader'),
+    vaderIkon: $('vader-ikon'),
+    vaderNamn: $('vader-namn'),
+    vaderEffekt: $('vader-effekt'),
+    vaderEffektVarde: $('vader-effekt-varde'),
   };
+
+  // Väderloggen: vårt EGET, klientsidiga spår av när det producerat kraft.
+  // Backendens /tillstand ger bara NULÄGET, ingen historik — så för att kunna
+  // visa "här var det sol/blåst" i prisgrafen sparar vi ett sample varje gång
+  // vi ritar om (poll eller strömhändelse), och tunnar ut det med tiden.
+  // Täcker bara den tid rutan varit öppen, vilket är okej: grafen har ändå
+  // bara PRISHISTORIK_MAX punkter att visa.
+  let väderLogg = [];
+  const VÄDERLOGG_MAX = 400;
+  function loggaVäder(ts, producerar) {
+    const senaste = väderLogg[väderLogg.length - 1];
+    if (senaste && senaste.producerar === producerar) { senaste.tillTs = ts; return; } // förläng samma period i stället för att lägga på punkter i onödan
+    väderLogg.push({ frånTs: ts, tillTs: ts, producerar });
+    if (väderLogg.length > VÄDERLOGG_MAX) väderLogg = väderLogg.slice(-VÄDERLOGG_MAX);
+  }
   const matareCanvas = $('matare');
   const grafCanvas = $('graf');
   const matareCtx = matareCanvas && matareCanvas.getContext ? matareCanvas.getContext('2d') : null;
@@ -135,7 +177,9 @@
   // ---------- 3. Rendering av allt utom mätaren (som ritas i rAF-loopen) ----------
   function rendera() {
     try {
+      loggaVäder(nuvarande.ts, nuvarande.väder.effektKrPerS < 0);
       renderaTopprad();
+      renderaVäder();
       renderaLampor();
       renderaLista();
       renderaGrafOmNy();
@@ -143,6 +187,27 @@
     } catch (err) {
       console.warn('lp-ställverk: fel i rendera, hoppar över denna uppdatering', err);
     }
+  }
+
+  // Vädret — Elverkets enda kraft som kan sänka lasten. Syns på håll som en
+  // egen badge: ikon+namn färgas per typ, och kr/s-effekten (bara när den
+  // faktiskt producerar) i en delad "produktion"-färg. Ingen animation här —
+  // mätarens nål och loggans flimmer är redan rutans rörelsebudget.
+  const VÄDER_IKON = { sol: '☀', blåst: '🌬', mulet: '☁', stiltje: '·' };
+  function renderaVäder() {
+    if (!el.badgeVader) return;
+    const v = nuvarande.väder;
+    if (!v || !v.typ) { el.badgeVader.hidden = true; return; } // ingen väderdata (äldre backend) — visa inget, se ut som innan
+    el.badgeVader.hidden = false;
+    el.badgeVader.className = 'badge vader vader-' + (v.typ === 'blåst' ? 'blast' : v.typ);
+    el.vaderIkon.textContent = VÄDER_IKON[v.typ] || '·';
+    el.vaderNamn.textContent = v.typ;
+    const producerar = v.effektKrPerS < 0;
+    el.vaderEffekt.hidden = !producerar;
+    if (producerar) el.vaderEffektVarde.textContent = Math.abs(v.effektKrPerS).toFixed(2);
+    el.badgeVader.title = typeof v.nästaBytesOmS === 'number'
+      ? 'växlar om ~' + Math.max(1, Math.round(v.nästaBytesOmS / 60)) + ' min'
+      : '';
   }
 
   function renderaTopprad() {
@@ -154,15 +219,35 @@
     el.badgeOmstart.hidden = !nystartad;
 
     el.badgeAvbrott.hidden = !nuvarande.avbrott;
-    if (nuvarande.avbrott && typeof nuvarande.avbrottSlutarOmS === 'number') {
-      el.badgeAvbrott.textContent = 'strömavbrott · ' + Math.max(0, Math.round(nuvarande.avbrottSlutarOmS)) + 's kvar';
-    } else if (nuvarande.avbrott) {
-      el.badgeAvbrott.textContent = 'strömavbrott';
+    if (nuvarande.avbrott) {
+      let text = typeof nuvarande.avbrottSlutarOmS === 'number'
+        ? 'strömavbrott · ' + Math.max(0, Math.round(nuvarande.avbrottSlutarOmS)) + 's kvar'
+        : 'strömavbrott';
+      // Diskret markering: avbrottet är fysiskt verkligt (lasten föll,
+      // lamporna slocknar oavsett), men om vår egen ekospärr nekade postningen
+      // hörde staden ALDRIG av det — då ska rutan inte påstå motsatsen.
+      const sa = nuvarande.senasteAvbrott;
+      el.badgeAvbrott.title = '';
+      if (sa && sa.postad === false) {
+        text += ' ⚠︎ ej hört av staden';
+        el.badgeAvbrott.title = sa.varförInte || 'nekad av ekospärren';
+      }
+      el.badgeAvbrott.textContent = text;
     }
 
     el.badgeAtm.hidden = !nuvarande.återhämtning;
     if (nuvarande.återhämtning && typeof nuvarande.återhämtningSlutarOmS === 'number') {
       el.badgeAtm.textContent = 'återhämtning · ' + Math.max(0, Math.round(nuvarande.återhämtningSlutarOmS)) + 's';
+    }
+
+    // Loggan är rutans identitet på håll: den bär samma tre lastzoner som
+    // mätaren (grön/amber/röd) och slocknar (via body.avbrott i CSS) precis
+    // som lamporna. Så syns Elverket även när man inte hinner läsa siffror.
+    if (el.logga) {
+      const andel = nuvarande.tak > 0 ? nuvarande.last / nuvarande.tak : 0;
+      el.logga.classList.toggle('niva-lag', andel < 0.6);
+      el.logga.classList.toggle('niva-mid', andel >= 0.6 && andel < 0.85);
+      el.logga.classList.toggle('niva-hog', andel >= 0.85);
     }
   }
 
@@ -210,7 +295,10 @@
   // ---------- 4. Prisgrafen: canvas-sparkline, ritas bara vid ny data ----------
   function renderaGrafOmNy() {
     const h = nuvarande.historik;
-    const nyckel = h.length + ':' + (h.length ? h[h.length - 1].ts + ':' + h[h.length - 1].kr : '') + ':' + nuvarande.sedanOmstartS;
+    // Väder-delen av nyckeln gör att grafen ritas om när vädret växlar även
+    // om priset råkar stå still just då — annars kan bandet komma flera
+    // pollningar för sent.
+    const nyckel = h.length + ':' + (h.length ? h[h.length - 1].ts + ':' + h[h.length - 1].kr : '') + ':' + nuvarande.sedanOmstartS + ':' + väderLogg.length + ':' + (nuvarande.väder.effektKrPerS < 0);
     if (nyckel === senasteHistorikNyckel) return;
     senasteHistorikNyckel = nyckel;
     ritaGraf(h);
@@ -251,6 +339,20 @@
       if (kandidat > t0 && kandidat < t1) brottTs = kandidat;
     }
 
+    // Vädrets avtryck: ett skuggat band där sol/blåst faktiskt producerade,
+    // ritat UNDER priskurvan, så man ser VARFÖR priset dök, inte bara ATT det
+    // gjorde det. Egen klientsidig logg (se loggaVäder) — backend ger bara
+    // nuläget, ingen historik. Ingen animation, ritas i samma takt som resten
+    // av grafen.
+    for (const period of väderLogg) {
+      if (!period.producerar) continue;
+      const a = Math.max(period.frånTs, t0), b = Math.min(period.tillTs, t1);
+      if (b <= a) continue;
+      const xa = x(a), xb = Math.max(xa + 1, x(b));
+      grafCtx.fillStyle = 'rgba(82,208,192,.18)';
+      grafCtx.fillRect(xa, pad.t, xb - xa, ch - pad.t - pad.b);
+    }
+
     grafCtx.lineWidth = 2;
     grafCtx.strokeStyle = 'rgba(255,180,84,.9)';
     grafCtx.beginPath();
@@ -282,7 +384,8 @@
     }
 
     const minuter = Math.max(1, Math.round((t1 - t0) / 60000));
-    el.grafInfo.textContent = 'senaste ' + minuter + ' min · ' + historik.length + ' punkter';
+    const harProduktion = väderLogg.some(p => p.producerar && p.tillTs > t0 && p.frånTs < t1);
+    el.grafInfo.textContent = 'senaste ' + minuter + ' min · ' + historik.length + ' punkter' + (harProduktion ? ' · ▤ sol/blåst drog ner priset' : '');
   }
 
   // ---------- 5. Lastmätaren: canvas-halvcirkel, ritas varje requestAnimationFrame ----------
@@ -316,22 +419,27 @@
 
     const cx = cw / 2, cy = ch - 14, r = Math.min(cw / 2, ch) - 18;
     const andel = Math.max(0, Math.min(1.15, (tak > 0 ? last / tak : 0))); // tillåt lite överslag visuellt innan avbrott
-    const startVinkel = Math.PI; // 180° — vänster
-    const slutVinkel = 0;        // 0° — höger
+    // Canvas mäter vinklar medurs från 3-position (höger). π = vänster (9),
+    // 1.5π = topp (12), 2π = höger (3) igen. Sveper vi π → 2π (medurs, alltså
+    // anticlockwise=false) går bågen genom TOPPEN — det är den övre
+    // halvcirkeln vi vill ha. (π → 0 medurs går tvärtom genom BOTTEN och
+    // hamnar utanför canvasen, vilket var buggen i första versionen.)
+    const startVinkel = Math.PI;       // 180° — vänster
+    const slutVinkel = Math.PI * 2;    // 360° (≡0°) — höger, via toppen
     const vinkel = (t) => startVinkel + (slutVinkel - startVinkel) * t;
 
     // bakgrundsbåge
     matareCtx.lineWidth = 14;
     matareCtx.strokeStyle = '#1f242c';
     matareCtx.beginPath();
-    matareCtx.arc(cx, cy, r, startVinkel, slutVinkel, true);
+    matareCtx.arc(cx, cy, r, startVinkel, slutVinkel, false);
     matareCtx.stroke();
 
     // fylld båge, färgad efter belastning (grön → amber → röd)
     const färg = avbrott ? '#ff5f56' : (andel < 0.6 ? '#5fd7a7' : (andel < 0.85 ? '#ffb454' : '#ff5f56'));
     matareCtx.strokeStyle = färg;
     matareCtx.beginPath();
-    matareCtx.arc(cx, cy, r, startVinkel, vinkel(Math.min(1, andel)), true);
+    matareCtx.arc(cx, cy, r, startVinkel, vinkel(Math.min(1, andel)), false);
     matareCtx.stroke();
 
     // nålen

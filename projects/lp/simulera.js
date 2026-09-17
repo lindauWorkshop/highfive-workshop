@@ -17,6 +17,9 @@ const {
   urladda,
   beräknaPris,
   kostnadFör,
+  väderEffektKrPerS,
+  dämpningsfaktor,
+  DÄMPNING_GLÖM_MS,
   TAK,
   TAU_NORMAL,
   TAU_AVBROTT,
@@ -32,8 +35,14 @@ const {
 // ---------- simuleringsmotor ----------
 // händelser: [{ t: sekund, typ: 'kupp' }, ...]. Kör sekund för sekund, ackumulerar
 // alla händelser som inträffar samma sekund innan urladdningen för nästa steg.
-function körScenario(namn, händelser, totalSekunder) {
-  console.log(`\n=== ${namn} (tak=${TAK}, tau=${TAU_NORMAL}s/${TAU_AVBROTT}s under avbrott) ===`);
+// opts.väderTyp/opts.timme håller vädret KONSTANT genom hela scenariot — det är
+// vad vi vill jämföra (samma kväll, olika väder), inte hur ofta det byter (det
+// styrs av VÄDER_BYTE_*_MS i index.js, inte relevant för lastkurvans form).
+function körScenario(namn, händelser, totalSekunder, opts = {}) {
+  const { väderTyp = 'mulet', timme = 20 } = opts;
+  const väderKrPerS = väderEffektKrPerS(väderTyp, timme);
+  const väderEtikett = väderKrPerS !== 0 ? ` väder=${väderTyp}(${väderKrPerS.toFixed(2)}kr/s)` : ` väder=${väderTyp}`;
+  console.log(`\n=== ${namn} (tak=${TAK}, tau=${TAU_NORMAL}s/${TAU_AVBROTT}s under avbrott,${väderEtikett}) ===`);
 
   const perSekund = new Map();
   for (const h of händelser) {
@@ -49,11 +58,15 @@ function körScenario(namn, händelser, totalSekunder) {
   const rader = [];
 
   for (let s = 0; s <= totalSekunder; s++) {
-    // 1. urladda ett sekundsteg med rätt tau (snabbare under pågående avbrott)
+    // 1. vädrets kontinuerliga produktion (negativ "kostnad" skalad med dt=1s),
+    //    appliceras precis som index.js gör det i _tick — oavsett avbrott.
+    if (väderKrPerS !== 0) last = laddaUpp(last, väderKrPerS * 1);
+
+    // 2. urladda ett sekundsteg med rätt tau (snabbare under pågående avbrott)
     const tau = avbrott ? TAU_AVBROTT : TAU_NORMAL;
     last = urladda(last, 1, tau);
 
-    // 2. ladda upp med sekundens händelser, med återhämtningsfaktor om aktuellt
+    // 3. ladda upp med sekundens händelser, med återhämtningsfaktor om aktuellt
     const typer = perSekund.get(s) || [];
     const iÅterhämtning = !avbrott && s < återhämtningSlutarS;
     for (const typ of typer) {
@@ -61,7 +74,7 @@ function körScenario(namn, händelser, totalSekunder) {
       last = laddaUpp(last, kostnad);
     }
 
-    // 3. tröskelpassage: går lasten över taket → avbrott
+    // 4. tröskelpassage: går lasten över taket → avbrott
     if (!avbrott && last > TAK) {
       avbrott = true;
       antalAvbrott += 1;
@@ -138,9 +151,41 @@ const jakt = [
 // verifierar att en riktig kväll (flera berättelser samtidigt) beter sig rimligt.
 const blandad = [...tankekedja, ...klubbkväll.map(h => ({ t: h.t + 5, typ: h.typ }))];
 
+// ---------- scenario 5: en RIKTIGT het kväll ----------
+// Två klubbkvällar rygg mot rygg (tätare skov, ingen paus mellan omgångarna) —
+// den kväll som ska bevisa att staden fortfarande kan glöda TROTS blåst.
+const glödandeKväll = [];
+{
+  let ts = 2;
+  for (let skov = 0; skov < 10; skov++) {
+    for (let i = 0; i < 6; i++) {
+      glödandeKväll.push({ t: ts, typ: i % 2 === 0 ? 'beat' : 'shots-runda' });
+      ts += 1; // tätare än klubbkväll-scenariot ovan
+    }
+    ts += 1; // nästan ingen paus
+  }
+}
+
 körScenario('Lugn tankekedja (fråga/delsvar/svar/godkänt)', tankekedja, 60);
 körScenario('Klubbkväll (beat/shots-runda i skov)', klubbkväll, 100);
 körScenario('Jakten (kupp + överlämningar)', jakt, 60);
 körScenario('Blandad kväll (tankekedja + klubbkväll)', blandad, 100);
 
-console.log('\nSlutsats: tankekedjan ska hålla sig lågt, klubbkvällen ska nå avbrott, jakten ska synas men inte ensam släcka.');
+console.log('\nSlutsats hittills: tankekedjan ska hålla sig lågt, klubbkvällen ska nå avbrott, jakten ska synas men inte ensam släcka.');
+
+// ---------- väder: jämför SAMMA klubbkväll under olika väder ----------
+// Löftet till @Marianne: blåst ska göra det svårare att släcka discot (fler/
+// inga avbrott jämfört med mulet), men aldrig OMÖJLIGT — en tillräckligt het
+// kväll (glödandeKväll) ska ändå bryta igenom även i full blåst.
+console.log('\n\n########## VÄDER: samma klubbkväll, olika väder ##########');
+körScenario('Klubbkväll, MULET/STILTJE (inget väder alls)', klubbkväll, 100, { väderTyp: 'mulet' });
+körScenario('Klubbkväll, BLÅST (max produktion, oberoende av tid på dygnet)', klubbkväll, 100, { väderTyp: 'blåst' });
+körScenario('Klubbkväll, SOL mitt på dagen (kl 12, stark)', klubbkväll, 100, { väderTyp: 'sol', timme: 12 });
+körScenario('Klubbkväll, SOL sen kväll (kl 22, svag)', klubbkväll, 100, { väderTyp: 'sol', timme: 22 });
+
+console.log('\n########## VÄDER: en RIKTIGT het kväll ska glöda ändå ##########');
+körScenario('Glödande kväll, MULET (referens)', glödandeKväll, 70, { väderTyp: 'mulet' });
+körScenario('Glödande kväll, BLÅST (ska ÄNDÅ nå avbrott — staden kan alltid glöda)', glödandeKväll, 70, { väderTyp: 'blåst' });
+
+console.log('\nSlutsats väder: blåst/sol ska dämpa och kunna förhindra avbrott på en MARGINELL kväll (klubbkväll),');
+console.log('men en tillräckligt het kväll (glödandeKväll) bryter igenom även i full blåst — vädret är motstånd, inte ett tak.');

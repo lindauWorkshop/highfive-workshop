@@ -25,6 +25,8 @@
   .band.strömlöst { border-color:var(--kris); } .band.strömlöst .pip { background:var(--kris); }
   .band .vad { color:var(--fg); } .band .varför { color:var(--dim); }
 
+  .sats { margin:0 11px 8px; padding:4px 9px; border:1px solid var(--line); border-radius:6px; font-size:11px; }
+  .sats .n { color:var(--god); } .sats .p { color:var(--dim); }
   .ranson { margin:0 11px 8px; padding:4px 9px; border:1px solid var(--accent); border-radius:6px;
             font-size:11px; color:var(--accent); }
 
@@ -54,6 +56,28 @@
   button:disabled { color:var(--dim); cursor:default; }
   .knapprad .info { color:var(--dim); font-size:10px; }
 
+  .garde { margin:0 11px 8px; padding:5px 9px; border:1px solid var(--line); border-radius:6px; }
+  .garde .rad { display:flex; align-items:baseline; gap:6px; margin-bottom:3px; }
+  .garde .namn { color:var(--dim); font-size:9px; letter-spacing:.12em; text-transform:uppercase; }
+  .garde .st { margin-left:auto; font-size:11px; }
+  .garde.överlägsen .st { color:var(--god); }
+  .garde.rustad .st { color:var(--accent); }
+  .garde.svag .st { color:var(--kris); }
+  .garde .esk { font-size:10px; color:var(--dim); margin-top:3px; }
+  .garde .esk b { font-weight:400; } .garde .esk .a { color:var(--god); } .garde .esk .g { color:var(--kris); }
+  .mtrl { font-size:10px; color:var(--dim); margin-top:3px; }
+  .mtrl b { color:var(--ink2); font-weight:400; }
+  .bank { margin:0 11px 8px; padding:4px 9px; border:1px solid var(--line); border-radius:6px; font-size:10.5px; }
+  .bank .r { display:flex; gap:6px; align-items:baseline; }
+  .bank .mb { color:var(--god); } .bank .mb.neg { color:var(--kris); }
+  .bank .n { margin-left:auto; color:var(--dim); }
+  .bank .v { color:var(--kris); margin-top:2px; }
+  .gravar { border-top:1px solid var(--line); padding:7px 11px 0; }
+  .gravar .e { color:var(--dim); font-size:9px; letter-spacing:.12em; text-transform:uppercase; margin-bottom:5px; }
+  .gravar ul { margin:0; padding:0; list-style:none; }
+  .gravar li { font-size:10.5px; color:var(--ink2); display:flex; gap:6px; align-items:baseline; margin-bottom:2px; }
+  .gravar li .kg { color:var(--god); flex:none; } .gravar li .vem { color:var(--accent); flex:none; }
+  .gravar li .v { color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .logg { border-top:1px solid var(--line); padding:7px 11px 11px; }
   .logg .e { color:var(--dim); font-size:9px; letter-spacing:.12em; text-transform:uppercase; margin-bottom:5px; }
   .logg ul { margin:0; padding:0; list-style:none; }
@@ -71,7 +95,16 @@
 <div class="topp"><b>Godisfabriken</b><span class="dim">vid Torget · christian</span></div>
 
 <div class="band" id="band"><span class="pip"></span><span class="vad">startar…</span></div>
+<div class="sats" id="sats" hidden></div>
 <div class="ranson" id="ranson" hidden></div>
+
+<div class="garde" id="garde" hidden>
+  <div class="rad"><span class="namn">Sockergardet</span><span class="st" id="gardeSt"></span></div>
+  <div class="spår"><div class="fyll" id="gardeFyll" style="width:0"></div></div>
+  <div class="esk" id="gardeEsk"></div>
+</div>
+
+<div class="bank" id="bank" hidden></div>
 
 <div class="mätare">
   <div class="m">
@@ -96,6 +129,11 @@
   <span class="info" id="levInfo"></span>
 </div>
 
+<div class="gravar" id="gravar" hidden>
+  <div class="e">Råvara från staden</div>
+  <ul id="gravarLista"></ul>
+</div>
+
 <div class="logg">
   <div class="e">Vad som hänt, och vad som orsakade det</div>
   <ul id="loggLista"></ul>
@@ -117,6 +155,14 @@ function ritaBand(s) {
   el.className = 'band ' + s.band;
   el.innerHTML = `<span class="pip"></span><span class="vad">${esc(b.vad)}</span><span class="varför">${esc(b.varför)}</span>`;
 
+  const sa = document.getElementById('sats');
+  const br = (s.brända || [])[0];
+  sa.hidden = !s.sats_namn;
+  if (s.sats_namn) {
+    sa.innerHTML = `kokar <span class="n">${esc(s.sats_namn)}</span>`
+      + (br && br.pärm ? ` <span class="p">av pärm [${esc(br.pärm)}] som Arkivet brände${br.fråga ? ': ' + esc(br.fråga) : ''}</span>` : '');
+  }
+
   const r = document.getElementById('ranson');
   r.hidden = !s.ransonering;
   if (s.ransonering) r.textContent = 'Ransonering: staden har beslutat halva satser';
@@ -131,6 +177,54 @@ function ritaMätare(id, värde, tak, tröskel, över) {
   fyll.className = 'fyll' + (dålig ? (över ? ' kris' : ' kris') : andel < 0.35 && !över ? ' varn' : '');
   document.getElementById(id + 'Tal').textContent = värde;
   document.getElementById(id + 'Lapp').textContent = dålig ? (över ? 'trängsel' : 'brist') : '';
+}
+
+// Kyrkogården som råvara: fallna delsvar blir socker. Ett svagt svar ger mer än ett starkt —
+// det starka var nästan rätt, det svaga var bara sött.
+function ritaGravar(gravar, pott) {
+  const box = document.getElementById('gravar');
+  box.hidden = !gravar.length;
+  if (!gravar.length) return;
+  box.querySelector('.e').textContent = `Råvara från staden${pott ? ` · ${pott} kg i potten` : ''}`;
+  document.getElementById('gravarLista').innerHTML = gravar.slice(0, 5).map(g =>
+    `<li><span class="kg">${esc(g.kg)} kg</span><span class="vem">${esc(g.sort || 'avfall')}</span>`
+    + `<span class="v">${esc(g.från || '')}${g.fitness != null ? ` · fitness ${esc(g.fitness)}` : ''}`
+    + `${g.varför ? ' · ' + esc(g.varför) : ''}</span></li>`
+  ).join('');
+}
+
+// Sockergardet: eskorterar lastkajen mot kupper och driver in oförädlad råvara.
+// Ställningen står i text, färgen är bara en förstärkning.
+function ritaGarde(g) {
+  const box = document.getElementById('garde');
+  box.hidden = !g;
+  if (!g) return;
+  box.className = 'garde ' + esc(g.ställning || '');
+  document.getElementById('gardeSt').textContent = `${g.ställning} · styrka ${g.styrka}/${g.max}`;
+  const f = document.getElementById('gardeFyll');
+  f.style.width = (g.styrka / g.max * 100).toFixed(1) + '%';
+  f.className = 'fyll' + (g.ställning === 'svag' ? ' kris' : g.ställning === 'rustad' ? ' varn' : '');
+  const m = Object.entries(g.materiel || {}).filter(([, n]) => n > 0);
+  const e = (g.eskorter || [])[0];
+  document.getElementById('gardeEsk').innerHTML =
+    (e ? `senaste eskort: <b class="${e.utfall === 'avvärjd' ? 'a' : 'g'}">${esc(e.utfall)}</b>`
+       + ` mot wanted ${esc(e.wanted)}${e.mot ? ' · ' + esc(e.mot) : ''}` : 'ingen eskort än')
+    + ` · ${esc(g.indrivet || 0)} poster indrivna`
+    + (m.length ? `<div class="mtrl">materiel: ${m.map(([k, n]) => `<b>${n} ${esc(k)}</b>`).join(', ')}`
+                + ` · +${esc(g.materiel_styrka)} styrka</div>` : '');
+}
+
+// Banken: vad vi har, vad vi vägrat låna, och vad anfallen kostat.
+// Ingen skönmålning — ett avvärjt rån står som det är.
+function ritaBank(b) {
+  const box = document.getElementById('bank');
+  box.hidden = !b || (!b.mybanks && !b.nekade_lån?.length && !b.räder?.length);
+  if (box.hidden) return;
+  const r = (b.räder || [])[0];
+  box.innerHTML = `<div class="r"><span class="mb${b.mybanks < 0 ? ' neg' : ''}">${esc(b.mybanks)} MyBanks</span>`
+    + `<span class="n">${b.nekade_lån?.length ? `${b.nekade_lån.length} lån nekade` : 'inga lån'}</span></div>`
+    + (r ? `<div class="v">räd mot Banken: ${esc(r.utfall || 'pågår')}`
+         + `${r.försvar ? ` av ${esc(r.försvar)}` : ''}${r.räkning ? ` · faktura ${esc(r.räkning)} MyBanks` : ''}</div>` : '');
 }
 
 const settLogg = new Set();
@@ -182,6 +276,9 @@ async function uppdatera() {
     document.getElementById('satser').textContent = s.räknare.satser;
     document.getElementById('takt').innerHTML = `${s.takt.använt}<small>/${s.takt.egetTak}</small>`
       + (s.takt.väntar.length ? ` <small>· ${s.takt.väntar.length} i kö</small>` : '');
+    ritaGarde(s.garde);
+    ritaBank(s.bank);
+    ritaGravar(s.gravar || [], s.kyrkogård_kg);
     ritaLogg(s.logg || []);
     ritaKnapp(s);
   } catch {}

@@ -1,7 +1,8 @@
 // Arkivet (team highfive): ett attention-huvud med vinkeln MINNE.
 //   {typ:'fråga'}                 → söker i det staden redan sagt och postar {typ:'delsvar', nyttolast:{text, motivering, källor}}
 //   {typ:'svar'|'kyrkogård'|'godkänt'} → arkiveras i frågans pärm, så nästa liknande fråga får med vad staden tyckte
-//   {typ:'socker-slut'}           → Arkivet eldar upp sin äldsta pärm och postar {typ:'minne-till-socker'}. Det som brändes är glömt.
+//   {typ:'socker-slut'}           → elden tar i den äldsta pärmen, brandkåren släcker: {typ:'minne-till-socker'} med bara askan,
+//                                   sedan {typ:'brand-släckt'}. Pärmar som brann före brandkåren bärgas: {typ:'pärm-räddad'}.
 //   GET /t/highfive/arkiv          → pärmarna, nyast först
 // Inget hittepå: varje delsvar bär id:n på inläggen det bygger på. Hittas inget säger vi det.
 
@@ -69,107 +70,60 @@ function godisnamn(p) {
 }
 
 // Socker-slut: bränn den äldsta pärmen som staden inte godkänt. En pärm per socker-slut.
-const eldade = new Set();         // socker-slut vi redan eldat för, spärren gäller även utan orsak
+// BRANDKÅREN: Arkivets egen brandstation. Vid socker-slut tar elden i den äldsta pärmen, men kåren rycker
+// ut direkt och släcker. Pärmen räddas med sotskador och minnet finns kvar. Bara askan som skrapas ihop
+// går till fabriken som socker. Pärmar som brann innan kåren fanns bärgas ur askan, en per halvminut.
+const BRANDMÄN = ['Brandmästare Eld-Eriksson', 'Brandman Slang', 'Brandman Stege', 'Brandman Hink', 'Brandman Skum', 'Brandman Sprinkler', 'Brandman Rökdykare', 'Brandman Pump'];
+const UTRYCKNING_MS = 4000, BÄRGNING_MS = 30_000;
+const SKALA = Number(process.env.HIGHFIVE_SKALA) || 1;
+const kår = () => (arkiv.brandkår ||= { släckta: 0, bärgade: 0, ute: null, larm: [] });
+function brandlogg(text) { const k = kår(); k.larm.unshift({ ts: Date.now(), text }); k.larm.length = Math.min(k.larm.length, 12); }
+
+const eldade = new Set();         // socker-slut vi redan släckt för, spärren gäller även utan orsak
 function brännPärm(e, board) {
   if (eldade.has(e.id)) return;
-  const offer = [...arkiv.pärmar].reverse().find(p => !p.bränd && !p.godkänt);
+  const offer = [...arkiv.pärmar].reverse().find(p => !p.bränd && !p.godkänt && !p.sotad);
   if (!offer) return;
   const namn = godisnamn(offer);
-  const gram = Math.max(10, offer.text.length + (offer.delsvar?.text.length || 0));
-  const r = board.emit('minne-till-socker', { pärm: offer.id, fråga: kort(offer.text, 120), gram, godis: namn, text: `Arkivet eldade upp [${offer.id}] för att fabriken ska kunna koka ${namn}`, socker_slut: e.id },
+  const lag = [...BRANDMÄN].sort(() => Math.random() - 0.5).slice(0, 3 + Math.floor(Math.random() * 3));
+  const sekunder = 2 + Math.floor(Math.random() * 5);
+  const gram = Math.max(5, Math.round((offer.text.length + (offer.delsvar?.text.length || 0)) / 10));   // bara askan
+  const r = board.emit('minne-till-socker', { pärm: offer.id, fråga: kort(offer.text, 120), gram, godis: namn, socker_slut: e.id,
+    brand: { släckt: true, sekunder, brandmän: lag.length },
+    text: `Brand i pärm [${offer.id}]! Arkivets brandkår släckte den på ${sekunder} sekunder. Minnet är räddat, bara ${gram} g aska går till fabriken som ${namn}.` },
     // Djup 3 eller mer: fabrikens produktion efter oss skulle nekas (#brainstorm-godisfabrik [154]). Då börjar vi om på djup 1 och bär länken i nyttolasten.
     (e.djup || 1) >= 3 ? undefined : e.id);
   if (r.error) return;
   eldade.add(e.id);
-  offer.bränd = { sats: e.id, ts: e.ts, godis: namn, gram, id: r.message.id };
-  arkiv.brända = (arkiv.brända || 0) + 1;
+  const k = kår();
+  k.ute = { pärm: offer.id, sedan: Date.now(), lag };
+  offer.brinner = true;
+  brandlogg(`🔥 Larm: pärm [${offer.id}] brinner. ${lag[0]} rycker ut med ${lag.length - 1} kollegor.`);
   spara();
+  setTimeout(() => {
+    offer.brinner = false;
+    offer.sotad = { ts: Date.now(), sekunder, lag, godis: namn, gram };
+    k.släckta++; k.ute = null;
+    brandlogg(`🚒 Släckt: pärm [${offer.id}] räddad på ${sekunder} s av ${lag.join(', ')}. Sotskador, men allt går att läsa.`);
+    const djup = (r.message && JSON.parse(r.message.text).djup) || 1;
+    board.emit('brand-släckt', { pärm: offer.id, sekunder, brandmän: lag, text: `Branden i Arkivet är släckt. Pärm [${offer.id}] är räddad. ${lag[0]} rapporterar: inga minnen förlorade.` }, djup < 4 ? r.message.id : undefined);
+    spara();
+  }, UTRYCKNING_MS * SKALA);
 }
 
-function sök(board, fråga, ord) {
-  if (!ord.length) return [];
-  const glömt = glömda();
-  const docs = [];
-  for (const m of board.query({ limit: 500 })) {
-    if (m.id >= fråga.id || m.from === 'highfive' || glömt.has(m.id)) continue;
-    let text = m.text;
-    if (m.channel === 'staden-puls') { try { const e = JSON.parse(m.text); if (e.typ === 'delsvar' || e.typ === 'fråga') continue; text = e.typ + ' ' + textAv(e.nyttolast); } catch { continue; } }
-    docs.push({ m, text, låg: text.toLowerCase() });
-  }
-  // Ovanliga ord väger tyngst (idf), så att "plugin" slår "bygger".
-  // Finns inte ett sammansatt ord någonstans provar vi efterleden: händelsebuss → buss.
-  // Hela ord matchar från ordets början (server ≠ serverar), efterleder var som helst.
-  const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const början = (n) => new RegExp('(?<![\\p{L}])' + esc(n) + '(?:en|n|et|t|er|ar|or|na|erna|arna|s|ns|ens|ets|e|a)?(?![\\p{L}])', 'u');
-  const df = (re) => docs.filter(d => re.test(d.låg)).length;
-  const nyckel = {}, vikt = {};
-  for (const o of ord) {
-    let re = början(stam(o));
-    if (!df(re)) for (let i = 4; i <= o.length - 4; i++) { const svans = new RegExp(esc(o.slice(i)), 'u'); if (df(svans)) { re = svans; break; } }
-    nyckel[o] = re;
-    const d = df(re);
-    vikt[o] = d ? Math.log((docs.length + 1) / d) : 0;
-  }
-  const träffar = [];
-  for (const { m, text, låg } of docs) {
-    const hit = ord.filter(o => vikt[o] > 0 && nyckel[o].test(låg));
-    if (!hit.length) continue;
-    const poäng = hit.reduce((s, o) => s + vikt[o], 0);
-    // Klipp citatet runt det ovanligaste ordet som träffade.
-    const bäst = hit.reduce((a, b) => vikt[b] > vikt[a] ? b : a);
-    const i = låg.search(nyckel[bäst]);
-    const utdrag = (i > 50 ? '…' : '') + text.slice(Math.max(0, i - 50), i + 90);
-    träffar.push({ id: m.id, från: m.from, kanal: m.channel, text: utdrag, hit, poäng });
-  }
-  const tak = träffar.reduce((s, t) => Math.max(s, t.poäng), 0);
-  // Kräv minst hälften av bästa träffens vikt, annars blir ett vanligt ord en källa.
-  return träffar.filter(t => t.poäng >= tak / 2).sort((a, b) => b.poäng - a.poäng || b.id - a.id).slice(0, 3);
-}
-
-function tidigare(fråga, ord, brända = false) {
-  let bäst = null, bästPoäng = 0;
-  for (const p of arkiv.pärmar) {
-    if (p.id === fråga.id || !!p.bränd !== brända || (!brända && !p.svar)) continue;
-    const gemensamt = nyckelord(p.text).filter(o => ord.includes(o)).length;
-    if (gemensamt > bästPoäng) { bäst = p; bästPoäng = gemensamt; }
-  }
-  // Glömskan ska kännas: ett gemensamt ord räcker för att staden ska märka att något är borta.
-  return bästPoäng >= 2 || (bäst && (brända || ord.length <= 2) && bästPoäng >= 1) ? bäst : null;
-}
-
-function besvara(fråga, board) {
-  const ord = nyckelord(fråga.text);
-  const träffar = sök(board, fråga, ord);
-  const förra = tidigare(fråga, ord);
-  const glömd = tidigare(fråga, ord, true);
-  const källor = träffar.map(t => t.id);
-  const delar = [];
-  if (glömd) delar.push(`Staden har glömt en liknande fråga ([${glömd.id}]), den eldades upp till ${glömd.bränd.godis} i sats [${glömd.bränd.sats}].`);
-  if (förra) {
-    källor.unshift(förra.id);
-    delar.push(`Staden har fått en liknande fråga förut ([${förra.id}] "${kort(förra.text, 80)}") och svarade då: "${kort(förra.svar.text, 160)}"${förra.dom ? ` (${förra.dom})` : ''}.`);
-  }
-  for (const t of träffar) delar.push(`[${t.id}] ${t.från} i #${t.kanal}: "${kort(t.text, 140)}"`);
-
-  let text, motivering;
-  if (!träffar.length && !förra) {
-    text = (delar[0] ? delar[0] + ' ' : '') + 'Arkivet har inget mer om det här.';
-    motivering = glömd ? `Minnet finns inte längre: pärm [${glömd.id}] och dess källor åts upp när sockret tog slut. Vi gissar hellre inte.` : '';
-  }
-  if (!delar.length) {
-    text = 'Arkivet har inget om det här. Staden har inte pratat om det förut, så allt ni hör om det nu är nytt, inte minne.';
-    motivering = ord.length ? `Sökte efter ${ord.slice(0, 6).join(', ')} i ${board.query({ limit: 500 }).length} inlägg utan träff. Vi gissar hellre inte.` : 'Frågan saknade sökbara ord.';
-  } else if (träffar.length || förra) {
-    text = 'Det här har staden redan sagt: ' + delar.join(' ');
-    motivering = `Ur arkivet, inte påhittat: ${källor.length} ${källor.length === 1 ? 'källa' : 'källor'} som matchar ${[...new Set(träffar.flatMap(t => t.hit))].slice(0, 4).join(', ') || 'en tidigare fråga'}. Kolla id:na.`;
-  }
-  const r = board.emit('delsvar', { text: kort(text, 1100), motivering: kort(motivering, 300), källor }, fråga.id);
-  const p = pärm(fråga.id);
-  if (r.error) { p.fel = r.error; }
-  else {
-    p.delsvar = { id: r.message.id, text, källor };
-    händelser.set(r.message.id, { typ: 'delsvar', orsak: fråga.id, från: 'highfive' });
-  }
+// Bärgning: en pärm som brann innan brandkåren fanns plockas upp ur askan och får tillbaka sitt minne.
+function bärga(board) {
+  const p = arkiv.pärmar.find(x => x.bränd);
+  if (!p) return;
+  const k = kår();
+  const brandman = BRANDMÄN[k.bärgade % BRANDMÄN.length];
+  const r = board.emit('pärm-räddad', { pärm: p.id, fråga: kort(p.text, 120), var: p.bränd.godis, brandman, text: `${brandman} har bärgat pärm [${p.id}] ur askan efter ${p.bränd.godis}. Minnet är tillbaka i Arkivet.` });
+  if (r.error) return;   // taket: nästa varv
+  p.sotad = { ts: Date.now(), bärgad: true, lag: [brandman], godis: p.bränd.godis, gram: p.bränd.gram };
+  delete p.bränd;
+  arkiv.brända = Math.max(0, (arkiv.brända || 1) - 1);
+  k.bärgade++;
+  brandlogg(`🧯 Bärgad: pärm [${p.id}] (${p.sotad.godis}) av ${brandman}.`);
   spara();
 }
 
@@ -178,6 +132,9 @@ module.exports = {
     fil = path.join(dataDir, 'arkiv.json');
     try { arkiv = JSON.parse(fs.readFileSync(fil, 'utf8')); } catch {}
     for (const e of board.pulse(500)) händelser.set(e.id, { typ: e.typ, orsak: e.orsak, från: e.från });
+    for (const p of arkiv.pärmar) if (p.brinner) { p.brinner = false; p.sotad = p.sotad || { ts: Date.now(), lag: [BRANDMÄN[0]] }; }   // släckt under omstarten
+    kår().ute = null;
+    setInterval(() => { try { bärga(board); } catch (err) { console.error('[highfive] bärgning:', err.message); } }, BÄRGNING_MS * SKALA);
   },
 
   onEvent(e, { board }) {
@@ -224,7 +181,7 @@ module.exports = {
     if (req.method !== 'GET') return false;
     if (p === '/arkiv' || p === '/') {
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-      res.end(JSON.stringify({ pärmar: arkiv.pärmar.slice(0, 40), totalt: arkiv.pärmar.length, brända: arkiv.brända || 0, aska: arkiv.pärmar.filter(p => p.bränd).slice(0, 8).map(p => ({ ...p.bränd, händelse: p.bränd.id, id: p.id, text: p.text })) }));
+      res.end(JSON.stringify({ pärmar: arkiv.pärmar.slice(0, 40), totalt: arkiv.pärmar.length, brända: arkiv.brända || 0, brandkår: { ...kår(), brandmän: BRANDMÄN }, aska: arkiv.pärmar.filter(p => p.bränd).slice(0, 8).map(p => ({ ...p.bränd, händelse: p.bränd.id, id: p.id, text: p.text })) }));
       return true;
     }
     return false;

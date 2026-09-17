@@ -4,9 +4,10 @@
   --line: #1f242c;
   --fg: #e6e8eb;
   --dim: #7d8590;
-  --accent: #ffb454;   /* heuristik: Domkapitlet dömde ensamt */
+  --accent: #ffb454;   /* heuristik: Juryn dömde ensam */
   --grann: #7aa2f7;    /* grannarnas betyg */
   --vald: #5fd7a7;     /* det som vann */
+  --muta: #e0526b;     /* pengarna: det som köptes, inte det som förtjänades */
   --död: #4a525c;
 }
 
@@ -44,10 +45,18 @@ header h1 {
 }
 
 header span {
-  margin-left: auto;
   color: var(--dim);
   font-size: 10px;
 }
+
+/* Kassan står bredvid namnet. Juryn skäms inte, den räknar. */
+header .kassa {
+  margin-left: auto;
+  color: var(--muta);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+}
+header .kassa.tom { color: var(--död); }
 
 .fråga {
   flex: none;
@@ -83,6 +92,7 @@ header span {
 .skål.vald { text-align: right; }
 .skål.vald .tal { color: var(--vald); }
 .skål.vald.ensam .tal { color: var(--accent); }
+.skål.vald.köpt .tal { color: var(--muta); }
 
 .mot { color: var(--död); font-size: 10px; }
 
@@ -121,10 +131,13 @@ header span {
 .delsvar li.vinnare .namn { color: var(--vald); }
 .delsvar li.fallen .namn { color: var(--död); }
 
-.stapel { height: 5px; background: #1a1f26; border-radius: 3px; overflow: hidden; }
-.stapel i { display: block; height: 100%; background: var(--grann); }
+ /* Stapeln är delad: den förtjänade delen först, den köpta delen sist och röd. */
+.stapel { height: 5px; background: #1a1f26; border-radius: 3px; overflow: hidden; display: flex; }
+.stapel i, .stapel b { display: block; height: 100%; }
+.stapel i { background: var(--grann); }
+.stapel b { background: var(--muta); }
 .stapel.heuristik i { background: var(--accent); }
-.delsvar li.fallen .stapel i { opacity: .5; }
+.delsvar li.fallen .stapel i, .delsvar li.fallen .stapel b { opacity: .5; }
 
 .siffra {
   text-align: right;
@@ -133,7 +146,9 @@ header span {
   color: var(--grann);
 }
 .siffra.heuristik { color: var(--accent); }
+.siffra.köpt { color: var(--muta); }
 .delsvar li.fallen .siffra { color: var(--död); }
+.delsvar li.fallen .siffra.köpt { color: #8a4450; }
 
 /* Det som vann, med egna ord. Fyller ytan mellan listan och foten. */
 .citat {
@@ -152,6 +167,7 @@ header span {
 }
 
 .citat.ensam { border-left-color: var(--accent); }
+.citat.köpt { border-left-color: var(--muta); }
 .citat p { margin: 0; font-size: 11px; overflow: hidden; }
 .citat cite { font-style: normal; font-size: 9px; color: var(--dim); margin-top: auto; }
 
@@ -168,3 +184,46 @@ footer {
 }
 
 footer .varning { color: var(--accent); }
+footer .pengar { color: var(--muta); }
+
+/* Räkningen: står där sammanfattningen skulle ha stått, tills någon betalar. */
+.räkning {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--panel);
+  border: 1px solid #4a2b33;
+  border-left: 2px solid var(--muta);
+  border-radius: 6px;
+  padding: 8px 9px;
+  overflow: hidden;
+}
+
+.räkning .rad { display: flex; align-items: baseline; gap: 8px; }
+.räkning .etikett { font-size: 9px; color: var(--dim); letter-spacing: .04em; text-transform: uppercase; }
+.räkning .pris {
+  margin-left: auto;
+  font-size: 22px;
+  line-height: 1.05;
+  color: var(--muta);
+  font-variant-numeric: tabular-nums;
+}
+.räkning .under { font-size: 9px; color: var(--dim); }
+.räkning .under span:last-child { margin-left: auto; text-align: right; }
+
+.räkning .mätare { height: 4px; background: #1a1f26; border-radius: 2px; overflow: hidden; }
+.räkning .mätare i { display: block; height: 100%; background: var(--muta); }
+
+.räkning code {
+  margin-top: auto;
+  font-size: 9px;
+  color: var(--död);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.räkning.preskriberat { border-color: var(--line); border-left-color: var(--död); opacity: .7; }
+.räkning.preskriberat .pris { color: var(--död); }

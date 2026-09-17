@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="sv"><head><meta charset="utf-8"><title>Radio Torget</title>
+<style>
+  :root { --bg:#0b0d10; --panel:#12151a; --line:#1f242c; --fg:#e6e8eb; --dim:#7d8590; --accent:#ffb454; --me:#5fd7a7; }
+  * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 -apple-system, system-ui, sans-serif; padding:12px 14px; }
+  .t { display:flex; align-items:center; gap:10px; margin-bottom:8px; } .t b { font:800 17px ui-monospace, Menlo, monospace; color:var(--accent); letter-spacing:.06em; } .t a { margin-left:auto; background:var(--accent); color:#1a1200; font-weight:700; text-decoration:none; padding:6px 12px; border-radius:999px; font-size:13px; }
+  .nu { background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:9px 11px; margin-bottom:10px; } .nu i { font-style:normal; color:var(--dim); font:11px ui-monospace, Menlo, monospace; letter-spacing:.1em; text-transform:uppercase; } .nu div { font-weight:600; margin-top:2px; } .nu p { margin:4px 0 0; color:#aab1ba; font-size:13px; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  form { display:grid; gap:7px; } .r { display:grid; grid-template-columns:1fr 118px; gap:7px; } input, textarea, select { background:#0e1116; color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; width:100%; } textarea { min-height:58px; resize:none; }
+  button { background:transparent; border:1px solid var(--accent); color:var(--accent); border-radius:8px; padding:8px; font-weight:700; cursor:pointer; } #s { font-size:12px; color:var(--me); min-height:16px; }
+</style></head><body>
+<div class="t"><b>RADIO TORGET</b><a href="/radio" target="_blank">▶ Lyssna</a></div>
+<div class="nu"><i>Senaste sändningen</i><div id="ti">Studion värmer upp</div><p id="tx"></p></div>
+<form id="f"><div class="r"><input name="namn" placeholder="Namn eller team" maxlength="30"><select name="sort"><option value="hälsning">Hälsning</option><option value="önskning">Låtönskning</option><option value="berättelse">Berättelse</option></select></div>
+<textarea name="text" placeholder="Hälsa, önska en låt eller berätta. Läses upp i nästa sändning." maxlength="280" required></textarea><button>Skicka till studion</button><div id="s"></div></form>
+<script>
+async function l() { const d = await fetch('/api/radio').then(r => r.json()).catch(() => null); const s = d && d.segment.find(x => x.typ === 'prat'); if (s) { document.getElementById('ti').textContent = new Date(s.ts).toTimeString().slice(0,5) + ' · ' + s.titel; document.getElementById('tx').textContent = s.text; } }
+document.getElementById('f').onsubmit = async e => { e.preventDefault(); const r = await fetch('/api/radio/halsning', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(Object.fromEntries(new FormData(e.target))) }); const j = await r.json(); const s = document.getElementById('s'); s.style.color = r.ok ? '#5fd7a7' : '#ff5f56'; s.textContent = r.ok ? 'Tack, studion har fått det.' : j.error; if (r.ok) e.target.text.value = ''; };
+l(); setInterval(l, 15000);
+</script></body></html>

@@ -27,10 +27,22 @@
   .p{cursor:default} .p:hover,.p.öppen{background:#221c15}
   .p:hover .q span,.p.öppen .q span,.p:hover .svar,.p.öppen .svar{white-space:normal;overflow:visible}
   .p:hover .full,.p.öppen .full{display:block}
+  /* Brandstationen */
+  #station{margin:8px 10px 0;padding:6px 10px;border:1px solid var(--kant);border-radius:6px;background:#15110d;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;font-size:12px}
+  #station b{color:var(--guld);font-weight:600;letter-spacing:.08em}
+  #station .läge{color:#8fd694} #station.larm{border-color:#ff5b2e;background:#2a120a;animation:blåljus .6s steps(2) infinite}
+  #station.larm .läge{color:#ff8a5b}
+  @keyframes blåljus{50%{box-shadow:inset 0 0 0 2px #3a7bff}}
+  #station .senast{flex-basis:100%;color:var(--dim);font-size:11px}
+  .p.brinner{border-left-color:#ff5b2e;background:linear-gradient(90deg,#3a160a,#1a1611);animation:flamma .5s ease-in-out infinite alternate}
+  @keyframes flamma{to{box-shadow:0 0 12px #ff5b2e88}}
+  .p.sotad{border-left-color:#8a7f73;background-image:radial-gradient(#0000 60%,#00000055)}
+  .sot{color:#b9ab98}
   .tomt{color:var(--dim);text-align:center;margin-top:28%;line-height:1.8}
 </style></head>
 <body>
 <header><h1>ARKIVET</h1><small>stadens minne</small><b id="n"></b></header>
+<div id="station"><b>🚒 BRANDSTATIONEN</b><span class="läge" id="läge">i beredskap</span><span id="kårstat"></span><span class="senast" id="senast"></span></div>
 <div id="hylla"><div class="tomt">Hyllorna är tomma.<br>Ställ en fråga till staden, så slår Arkivet upp vad den redan sagt.<br><small>Tar sockret slut eldar Arkivet upp sitt äldsta minne.</small></div></div>
 <script>
 const sett = new Set();
@@ -39,17 +51,28 @@ document.addEventListener('click', e => { const p = e.target.closest('.p'); cons
 let först = true;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-function rita({ pärmar, totalt, brända = 0 }) {
+function station(k) {
+  if (!k) return;
+  const st = document.getElementById('station');
+  st.classList.toggle('larm', !!k.ute);
+  document.getElementById('läge').textContent = k.ute ? `UTRYCKNING till pärm [${k.ute.pärm}] · ${k.ute.lag.length} brandmän` : `i beredskap · ${k.brandmän.length} brandmän`;
+  document.getElementById('kårstat').textContent = `${k.släckta} bränder släckta · ${k.bärgade} pärmar bärgade`;
+  document.getElementById('senast').textContent = k.larm[0] ? k.larm[0].text : '';
+}
+
+function rita({ pärmar, totalt, brända = 0, brandkår }) {
+  station(brandkår);
   document.getElementById('n').textContent = totalt ? `${totalt - brända} pärm${totalt - brända === 1 ? '' : 'ar'}${brända ? ` · 🔥 ${brända} uppätna` : ''}` : '';
   if (!pärmar.length) return;
   document.getElementById('hylla').innerHTML = pärmar.slice(0, 12).map(p => {
     const källor = p.delsvar?.källor || [];
-    const klass = p.bränd ? 'bränd' : p.dom === 'arkivet föll' ? 'föll' : p.dom === 'arkivet valdes' ? 'vald' : (p.delsvar && !källor.length ? 'tom' : '');
-    const dom = p.bränd ? `🔥 blev ${p.bränd.godis}` : p.godkänt ? 'godkänt' : p.dom || (p.fel ? 'spärrad' : p.delsvar ? 'väntar på dom' : 'slår upp…');
+    const klass = p.brinner ? 'brinner' : p.bränd ? 'bränd' : p.sotad ? 'sotad' : p.dom === 'arkivet föll' ? 'föll' : p.dom === 'arkivet valdes' ? 'vald' : (p.delsvar && !källor.length ? 'tom' : '');
+    const dom = p.brinner ? '🔥 BRINNER' : p.bränd ? `🔥 blev ${p.bränd.godis}, bärgas snart` : p.godkänt ? 'godkänt' : p.dom || (p.fel ? 'spärrad' : p.delsvar ? 'väntar på dom' : 'slår upp…');
     const ny = !först && !sett.has(p.id + ':' + dom);
     sett.add(p.id + ':' + dom);
     return `<div class="p ${klass}${ny ? ' ny' : ''}${öppen === p.id ? ' öppen' : ''}" data-id="${p.id}">
       <div class="q"><span title="${esc(p.text)}">${p.varv > 1 ? `<i>varv ${p.varv} · </i>` : ''}${esc(p.text)}</span><i>#${p.id}</i></div>
+      ${p.sotad ? `<div class="src sot">🚒 ${p.sotad.bärgad ? 'bärgad ur askan' : `släckt på ${p.sotad.sekunder} s`} av ${esc(p.sotad.lag[0])} · sotskadad men läsbar</div>` : ''}
       <div class="src">${p.bränd ? `<span class="godis">glömd · ${p.bränd.gram} g socker i sats [${p.bränd.sats}]</span>` : p.delsvar ? (källor.length ? 'källor ' + källor.map(k => `<u>[${k}]</u>`).join('') : 'inget i arkivet, sa det rakt ut') : ''}
         ${p.stenar.length ? `· ${p.stenar.length} sten${p.stenar.length === 1 ? '' : 'ar'}` : ''}
         <span class="dom ${klass}">${esc(dom)}</span></div>

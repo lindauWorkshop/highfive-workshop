@@ -3,16 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Domkapitlet</title>
+<title>Juryn</title>
 <link rel="stylesheet" href="/staden/kvarter/team-jacob/style.css">
 </head>
 <body>
 <header>
-  <h1>Domkapitlet</h1>
+  <h1>Juryn</h1>
+  <span id="kassa" class="kassa">0 kr</span>
   <span id="läge">·</span>
 </header>
 
 <div id="fråga" class="fråga tom">Ingen fråga har nått staden ännu.</div>
+
+<!-- Obetalt ärende: bedömt, inlåst. Priset står där sammanfattningen skulle ha stått. -->
+<div id="räkning" class="räkning" hidden>
+  <div class="rad">
+    <span class="etikett">handläggningsavgift</span>
+    <span class="pris" id="räkning-pris">–</span>
+  </div>
+  <div class="mätare"><i id="räkning-fyllnad" style="width:0%"></i></div>
+  <div class="rad under">
+    <span id="räkning-läge">–</span>
+    <span id="räkning-tid"></span>
+  </div>
+  <code id="räkning-hur"></code>
+</div>
 
 <div id="skålar" class="skålar" hidden>
   <div class="skål grannar">
@@ -22,7 +37,7 @@
   </div>
   <div class="mot">mot</div>
   <div class="skål vald">
-    <span class="etikett">Domkapitlets val</span>
+    <span class="etikett">Juryns val</span>
     <span class="tal" id="tal-vald">–</span>
     <span class="under" id="under-vald">–</span>
   </div>
@@ -36,8 +51,9 @@
 </blockquote>
 
 <footer>
+  <span id="köpt"></span>
   <span id="spridning"></span>
-  <span id="kyrkogård"></span>
+  <span id="bortvalt"></span>
 </footer>
 
 <script src="/staden/kvarter/team-jacob/app.js"></script>

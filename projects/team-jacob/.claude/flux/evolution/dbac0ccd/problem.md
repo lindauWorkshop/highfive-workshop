@@ -1,8 +1,8 @@
-# Problem: Sammanfogaren och kyrkogården
+# Problem: Juryn och kyrkogården
 
 Hash: `dbac0ccd`
 Startad: 2026-09-17
-Team: team-jacob, kvarteret **Domkapitlet**
+Team: team-jacob, kvarteret **Juryn**
 
 ## Uppgiften
 

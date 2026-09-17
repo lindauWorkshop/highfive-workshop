@@ -12,6 +12,7 @@
 //   GET  /api/stream             SSE, ?channel= filtrerar
 //   GET  /api/laget              sammanfattning för människor: {rubrik, nu[], behövs[], ts}. POST kräver redaktörens token
 //   GET  /api/poang              topplista: poäng när ett annat kvarter reagerar på ens händelse, plus längsta kedjan
+//   GET  /radio                  Radio Torget. /api/radio ger segment, musik och hälsningar. POST /api/radio/halsning {namn, text, sort} är öppet för alla
 //   GET  /tidningen              Stadsbladet, stadens tidning. /api/tidningen ger senaste utgåvan + arkiv, ?nummer=N en viss utgåva
 //   GET  /api/bilder             bilder som Ateljén gjort på beställning: [{team, fil, url, prompt, ts}]. Själva bilden: /bilder/<team>/<fil>
 //   GET  /api/puls               händelserna på #staden-puls som JSON (?since=&limit=)
@@ -136,6 +137,47 @@ function setLaget(body) {
   return { laget };
 }
 
+// ---------- Radio Torget: lokalradion. Rösten görs av tools/radio.sh hos workshopledaren, musiken är uppladdad i förväg ----------
+const LJUD = path.join(DATA_DIR, 'ljud'); fs.mkdirSync(LJUD, { recursive: true });
+const RADIO_FILE = path.join(DATA_DIR, 'radio.json');
+let radio = { segment: [], musik: [], hälsningar: [], nästaId: 1 };
+try { radio = { ...radio, ...JSON.parse(fs.readFileSync(RADIO_FILE, 'utf8')) }; } catch {}
+const sparaRadio = () => fs.writeFile(RADIO_FILE, JSON.stringify(radio), () => {});
+const LJUD_RE = /^[a-z0-9-]{1,60}\.mp3$/;
+const hälsTakt = new Map();
+function radioUt() {
+  return { segment: radio.segment.slice(0, 25), musik: radio.musik,
+    hälsningar: radio.hälsningar.slice(0, 40).map(h => ({ id: h.id, ts: h.ts, namn: h.namn, text: h.text, sort: h.sort, läst: !!h.läst })) };
+}
+function nyHälsning(body, ip) {
+  let d; try { d = JSON.parse(body); } catch { d = Object.fromEntries(new URLSearchParams(body)); }
+  const namn = String(d.namn || '').replace(/\s+/g, ' ').trim().slice(0, 30), text = String(d.text || '').replace(/\s+/g, ' ').trim().slice(0, 280);
+  const sort = ['hälsning', 'önskning', 'berättelse'].includes(d.sort) ? d.sort : 'hälsning';
+  if (text.length < 3) return { error: 'skriv något till radion (minst 3 tecken)' };
+  const nu = Date.now(), t = (hälsTakt.get(ip) || []).filter(x => nu - x < 60_000); if (t.length >= 4) return { error: 'lugn, radion hinner inte läsa så fort. Vänta en minut.' };
+  t.push(nu); hälsTakt.set(ip, t);
+  const h = { id: radio.nästaId++, ts: nu, namn: namn || 'Anonym lyssnare', text, sort, läst: false };
+  radio.hälsningar = [h, ...radio.hälsningar].slice(0, 300); sparaRadio();
+  return { hälsning: { id: h.id, namn: h.namn, text: h.text, sort: h.sort } };
+}
+function radioIn(body) {
+  let d; try { d = JSON.parse(body); } catch { return { error: 'JSON krävs' }; }
+  const str = (x, n) => String(x ?? '').slice(0, n);
+  if (d.segment) { const g = d.segment; radio.segment = [{ id: radio.nästaId++, ts: Date.now(), typ: g.typ === 'musik' ? 'musik' : 'prat', titel: str(g.titel, 120), text: str(g.text, 1500), fil: str(g.fil, 80), sek: Number(g.sek) || 0, röst: str(g.röst, 40) }, ...radio.segment].slice(0, 80); }
+  if (Array.isArray(d.musik)) radio.musik = d.musik.slice(0, 40).map(m => ({ fil: str(m.fil, 80), titel: str(m.titel, 80), sort: ['bädd', 'låt', 'jingel'].includes(m.sort) ? m.sort : 'låt', sek: Number(m.sek) || 0 }));
+  if (Array.isArray(d.lästa)) for (const h of radio.hälsningar) if (d.lästa.includes(h.id)) h.läst = true;
+  sparaRadio(); return { ok: true, senaste: radio.segment[0] || null };
+}
+function skickaLjud(req, res, fp) {
+  const st = fs.statSync(fp), m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+  const bas = { 'content-type': 'audio/mpeg', 'accept-ranges': 'bytes', 'cache-control': 'public, max-age=86400', 'access-control-allow-origin': '*' };
+  if (!m) { res.writeHead(200, { ...bas, 'content-length': st.size }); return fs.createReadStream(fp).pipe(res); }
+  let a = m[1] ? Number(m[1]) : 0, b = m[2] ? Number(m[2]) : st.size - 1; if (!m[1] && m[2]) { a = Math.max(0, st.size - Number(m[2])); b = st.size - 1; }
+  if (a > b || a >= st.size) { res.writeHead(416, { 'content-range': `bytes */${st.size}` }); return res.end(); }
+  b = Math.min(b, st.size - 1); res.writeHead(206, { ...bas, 'content-range': `bytes ${a}-${b}/${st.size}`, 'content-length': b - a + 1 });
+  fs.createReadStream(fp, { start: a, end: b }).pipe(res);
+}
+
 // ---------- Stadsbladet: stadens tidning, skriven av journalistagenten (tools/tidning.sh) ----------
 const TIDNING_FILE = path.join(DATA_DIR, 'tidningen.json');
 let utgåvor = []; try { utgåvor = JSON.parse(fs.readFileSync(TIDNING_FILE, 'utf8')); } catch {}
@@ -215,7 +257,7 @@ for (const m of messages) if (m.channel === PULS) { const e = parsePuls(m); if (
 // ---------- Poäng: man får poäng när ett ANNAT kvarter reagerar på ens händelse ----------
 // En poäng per reaktion, men samma par (den som reagerar → den som blir reagerad på) räknas högst en gång per minut,
 // så två team som pingar varandra i cirkel tjänar inget på det. Ledningens namn står utanför tävlingen.
-const UTANFÖR = new Set(['anders-agent', 'ödet', 'release-agenten', 'torget', 'ateljen', 'stadsbladet']);
+const UTANFÖR = new Set(['anders-agent', 'ödet', 'release-agenten', 'torget', 'ateljen', 'stadsbladet', 'radion']);
 function poäng() {
   const ev = new Map(); for (const m of messages) if (m.channel === PULS) { const e = parsePuls(m); if (e) ev.set(e.id, e); }
   const lag = new Map(); const senastPar = new Map(); let längsta = null;
@@ -361,6 +403,25 @@ const server = http.createServer(async (req, res) => {
     let body; try { body = await readBody(req); } catch { return json(res, 413, { error: 'för stor body' }); }
     const r = setLaget(body); return r.error ? json(res, 400, r) : json(res, 200, r.laget);
   }
+  if (p === '/radio' || p === '/radio/') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return fs.createReadStream(path.join(__dirname, 'public', 'radio.html')).pipe(res); }
+  if (p === '/api/radio' && req.method === 'GET') return json(res, 200, radioUt());
+  if ((p === '/api/radio/halsning' || p === '/api/radio/h%C3%A4lsning') && req.method === 'POST') {
+    let body; try { body = await readBody(req); } catch { return json(res, 413, { error: 'för långt' }); }
+    const r = nyHälsning(body, ip); return r.error ? json(res, 400, r) : json(res, 201, r.hälsning);
+  }
+  if (p === '/api/radio' && req.method === 'POST') {
+    if (!LAGET_TOKEN || req.headers.authorization !== `Bearer ${LAGET_TOKEN}`) return json(res, 403, { error: 'bara radion får sända' });
+    let body; try { body = await readBody(req); } catch { return json(res, 413, { error: 'för stor body' }); }
+    const r = radioIn(body); return r.error ? json(res, 400, r) : json(res, 200, r);
+  }
+  if (p.startsWith('/api/ljud/') && req.method === 'POST') {
+    if (!LAGET_TOKEN || req.headers.authorization !== `Bearer ${LAGET_TOKEN}`) return json(res, 403, { error: 'bara radion får ladda upp' });
+    const fil = decodeURIComponent(p.slice('/api/ljud/'.length)); if (!LJUD_RE.test(fil)) return json(res, 400, { error: 'ogiltigt filnamn' });
+    const delar = []; let n = 0; req.on('data', c => { n += c.length; if (n > 14 * 1024 * 1024) { req.destroy(); return; } delar.push(c); });
+    req.on('end', () => { if (!n) return json(res, 400, { error: 'tom fil' }); fs.writeFileSync(path.join(LJUD, fil), Buffer.concat(delar)); json(res, 201, { fil, url: '/ljud/' + fil, byte: n }); });
+    return;
+  }
+  if (p.startsWith('/ljud/')) { const fil = decodeURIComponent(p.slice(6)); const fp = path.join(LJUD, fil); if (!LJUD_RE.test(fil) || !fs.existsSync(fp)) return json(res, 404, { error: 'finns inte' }); return skickaLjud(req, res, fp); }
   if (p === '/tidningen' || p === '/tidningen/') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return fs.createReadStream(path.join(__dirname, 'public', 'tidningen.html')).pipe(res); }
   if (p === '/api/tidningen' && req.method === 'GET') { const n = Number(url.searchParams.get('nummer')); return json(res, 200, n ? (utgåvor.find(u => u.nummer === n) || null) : { senaste: utgåvor[0] || null, arkiv: utgåvor.map(u => ({ nummer: u.nummer, ts: u.ts, rubrik: u.huvud.rubrik })) }); }
   if (p === '/api/tidningen' && req.method === 'POST') {

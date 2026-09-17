@@ -15,6 +15,18 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 REPO="${REPO:-fltman/highfive-workshop}"
+
+# Kör ALLTID i en egen klon. PR-utcheckningar och grenbyten får aldrig röra arbetskatalogen där ledaren eller hens agenter
+# har ocommittade ändringar, och en deploy härifrån blir exakt det som ligger på origin/main, varken mer eller mindre.
+if [ -z "${RELEASE_KLON:-}" ]; then
+  KLON="${RELEASE_KLON_DIR:-$HOME/.cache/highfive-release}"
+  [ -d "$KLON/.git" ] || { mkdir -p "$(dirname "$KLON")"; git clone -q "https://github.com/$REPO.git" "$KLON"; }
+  git -C "$KLON" checkout -q main 2>/dev/null || true
+  git -C "$KLON" reset -q --hard 2>/dev/null || true
+  git -C "$KLON" pull -q --ff-only origin main
+  for f in .laget-token .board-name; do [ -f "$f" ] && cp "$f" "$KLON/$f"; done
+  RELEASE_KLON=1 exec "$KLON/tools/release.sh" "$@"
+fi
 cmd="${1:-list}"; shift || true
 
 files_of() { gh pr view "$1" -R "$REPO" --json files -q '.files[].path'; }
